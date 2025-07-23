@@ -1,4 +1,4 @@
-# 📝 **README - Pardis Exchange Management Bot**  
+# 📝 **README - Exchange Management Bot**  
 
 A professional **Telegram bot for cryptocurrency and fiat exchange management** with real-time price tracking, admin tools, and user notifications.  
 
@@ -54,8 +54,8 @@ A professional **Telegram bot for cryptocurrency and fiat exchange management** 
 ### Installation:  
 1. **Clone the repo**:  
    ```bash
-   git clone https://github.com/your-repo/pardis-exchange-bot.git
-   cd pardis-exchange-bot
+   git clone https://github.com/your-repo/Exchange-telegram-Bot
+   cd Exchange-telegram-Bot
    ```  
 
 2. **Install dependencies**:  
