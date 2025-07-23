@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# secret keys 
+plugins/secret_keys.py
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Sensitive files
+secret_keys.py
+*.env
+.env
+.env.*
+!.env.example
+
+# Database files
+*.sqlite3
+*.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Other
+*.bak
+*.swp
+*.swo
+
+# Test/coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.cache/
+# End of Selection
