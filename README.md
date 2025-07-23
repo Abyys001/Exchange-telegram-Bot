@@ -117,13 +117,6 @@ MIT License · [View License](./LICENSE)
 
 ---
 
-## 📞 **Support**  
-- **Email**: support@sarafipardis.co.uk  
-- **Telegram**: [@sarafipardis2](https://t.me/sarafipardis2)  
-- **Phone**: +44 7533 544249  
-
----
-
 ## 🎯 **Why This Bot?**  
 - **70% faster operations** vs manual management  
 - **User-friendly UI** with interactive buttons  
