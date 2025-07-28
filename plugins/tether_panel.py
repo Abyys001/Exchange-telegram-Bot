@@ -20,7 +20,7 @@ FINAL_MESSAGE = (
     "Manager  📞  +447399990340\n"
     "🔺🔺🔺🔺🔺🔺🔺🔺🔺\n"
     "📌آدرس دفتر :\n"
-    "<u>Office No7\n"
+    "<u>Office A\n"
     "North Finchley\n"
     "N129QL</u>\n\n"
     "🔺🔺🔺🔺🔺🔺🔺🔺🔺\n\n"
@@ -37,7 +37,7 @@ FINAL_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("اینستاگرام", url="https://www.instagram.com/sarafiipardis?igsh=MWxkZDVnY2J6djE5dg==")
     ],
     [
-        InlineKeyboardButton("کانال تلگرام ما", url="https://t.me/sarafipardis2"),
+        InlineKeyboardButton("کانال تلگرام ما", url="https://t.me/sarafipardis"),
         InlineKeyboardButton("بات تلگرامی ما", url="https://t.me/PardisSarafiBot")
     ]
 ])

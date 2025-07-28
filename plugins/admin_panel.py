@@ -1,7 +1,7 @@
 from pyrogram.types import KeyboardButton, ReplyKeyboardMarkup
 from pyromod import Client
 
-from .data import COMMANDS, insert_admin_stuff_to_data
+from .data import COMMANDS, insert_admin_stuff_to_data, ADMINS
 from .admin_news import news_handler
 from .admin_special_offer import special_offer
 from .admin_finalize import finalize_prices
@@ -15,10 +15,18 @@ async def back_to_main_menu(client, message):
 
 async def admin_main(client, message):
     """
-    Entry point for admin panel. Saves admin info and shows the panel.
+    Entry point for admin panel. Only allows ADMINS to enter.
+    Saves admin info and shows the panel.
     """
     user_id = message.from_user.id
     chat_id = message.chat.id
+
+    # فقط ادمین‌ها اجازه ورود دارند
+    if user_id not in ADMINS:
+        await message.reply("⛔ شما دسترسی به پنل مدیریت ندارید.")
+        return
+
+    # ذخیره اطلاعات ادمین برای استفاده بعدی
     await insert_admin_stuff_to_data(user_id, chat_id)
     await admin_panel(client, message, user_id, chat_id)
 

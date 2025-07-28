@@ -13,7 +13,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ===================== Constants =====================
 
-CHANNEL_ID = "@sarafipardis2"
+CHANNEL_ID = "@sarafipardis"
 # CHANNEL_ID = "@pardis_addon"
 
 ADMINS = [558994996, 474945045, 672452907]
@@ -27,6 +27,7 @@ COMMANDS = [
     "تغییر قیمت تتر",
     f"نهایی کردن قیمت ها {emoji.WRITING_HAND_LIGHT_SKIN_TONE}",
     f"استعلام قیمت {emoji.POUND_BANKNOTE}",
+    "تبدیل ارز",
 ]
 
 # ===================== Static Data =====================

@@ -19,7 +19,7 @@ CONTACT_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("اینستاگرام", url="https://www.instagram.com/sarafiipardis?igsh=MWxkZDVnY2J6djE5dg==")
     ],
     [
-        InlineKeyboardButton("کانال تلگرام", url="https://t.me/sarafipardis2"),
+        InlineKeyboardButton("کانال تلگرام", url="https://t.me/sarafipardis"),
         InlineKeyboardButton("ربات تلگرام", url="https://t.me/PardisSarafiBot")
     ],
 ])
@@ -32,7 +32,7 @@ MAIN_TEXT = (
     "Manager  📞  +447399990340\n"
     "🔺🔺🔺🔺🔺🔺🔺🔺🔺\n"
     "📌آدرس دفتر:\n"
-    "<u>Office No7\n"
+    "<u>Office A\n"
     "North Finchley\n"
     "N12 9QL</u>\n\n"
     "🔘 ساعات کاری:\n"

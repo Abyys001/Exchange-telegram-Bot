@@ -33,7 +33,7 @@ MAIN_TEXT = (
     "Manager  📞  +447399990340\n"
     "🔺🔺🔺🔺🔺🔺🔺🔺🔺\n"
     "📌آدرس دفتر :\n"
-    "<u>Office No7\n"
+    "<u>Office A\n"
     "708A High Road\n"
     "North Finchley\n"
     "N129QL<u/>\n\n"

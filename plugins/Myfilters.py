@@ -18,7 +18,7 @@ async def check_member(_, client, message):
         text = (
             "👋 خوش آمدید به ربات صرافی پردیس!\n\n"
             "برای استفاده از امکانات ربات، لطفاً ابتدا در کانال زیر عضو شوید و سپس دستور /start را ارسال کنید:\n\n"
-            "🔗 [عضویت در کانال](https://t.me/sarafipardis2)"
+            "🔗 [عضویت در کانال](https://t.me/sarafipardis)"
         )
         await client.send_message(user_id, text, disable_web_page_preview=True)
     except Exception as e:

@@ -19,7 +19,7 @@ Ms. Kianian    📞  +989121894230
 Manager  📞  +447399990340
 🔺🔺🔺🔺🔺🔺🔺🔺🔺
 📌آدرس دفتر :
-<u>Office No7
+<u>Office A
 708A High Road
 North Finchley
 N129QL<u/>
@@ -40,7 +40,7 @@ FINAL_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("اینستاگرام", url="https://www.instagram.com/sarafiipardis")
     ],
     [
-        InlineKeyboardButton("کانال تلگرام ما", url="https://t.me/sarafipardis2"),
+        InlineKeyboardButton("کانال تلگرام ما", url="https://t.me/sarafipardis"),
         InlineKeyboardButton("بات تلگرامی ما", url="https://t.me/PardisSarafiBot")
     ]
 ])
