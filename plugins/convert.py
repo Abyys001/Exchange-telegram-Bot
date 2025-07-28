@@ -29,8 +29,7 @@ def get_glass_keyboard():
         [[KeyboardButton(text) for text in row] for row in CONVERT_OPTIONS],
         resize_keyboard=True,
         one_time_keyboard=False,
-        selective=True,
-        row_width=2
+        selective=True
     )
 
 def get_glass_price_text():
@@ -61,6 +60,34 @@ def get_glass_price_text():
         usdt_sell=toman_form(tether_price.get("tether_sell_irr", 0))
     )
     return price_text
+
+# ===================== Price Access Helpers =====================
+def get_price(price_type):
+    """دریافت قیمت از دیکشنری prices با هندل خطا"""
+    try:
+        value = prices.get(price_type)
+        if value is None:
+            raise ValueError(f"قیمت '{price_type}' یافت نشد.")
+        # Remove commas before converting to float
+        if isinstance(value, str):
+            value = value.replace(",", "")
+        return float(value)
+    except Exception as e:
+        raise ValueError(f"خطا در دریافت قیمت: {e}")
+
+def get_tether_price(is_buy=True):
+    """دریافت قیمت تتر خرید یا فروش"""
+    try:
+        key = "tether_buy_irr" if is_buy else "tether_sell_irr"
+        value = tether_price.get(key)
+        if value is None:
+            raise ValueError(f"قیمت تتر '{key}' یافت نشد.")
+        # Remove commas before converting to float
+        if isinstance(value, str):
+            value = value.replace(",", "")
+        return float(value)
+    except Exception as e:
+        raise ValueError(f"خطا در دریافت قیمت تتر: {e}")
 
 # ===================== Glass Conversion Handlers =====================
 async def handle_glass_conversion(client, message, conversion_type):
@@ -97,6 +124,8 @@ async def handle_glass_conversion(client, message, conversion_type):
             elif "تتر" in clean_type:
                 rate = get_tether_price(is_buy=True)
                 symbol = "💲"
+            else:
+                raise ValueError("نوع تبدیل نامعتبر است.")
                 
             result = amount / rate
             
@@ -129,8 +158,13 @@ async def handle_glass_conversion(client, message, conversion_type):
             elif "تتر" in clean_type:
                 rate = get_tether_price(is_buy=False)
                 symbol = "🔁"
+            else:
+                raise ValueError("نوع تبدیل نامعتبر است.")
                 
             result = amount * rate
+        
+        else:
+            raise ValueError("نوع تبدیل شناسایی نشد.")
         
         # ارسال نتیجه با افکت شیشه‌ای
         await message.reply(
@@ -151,9 +185,8 @@ async def handle_glass_conversion(client, message, conversion_type):
     except asyncio.TimeoutError:
         await message.reply("⏳ زمان پاسخگویی به پایان رسید. لطفاً دوباره تلاش کنید.",
                           reply_markup=get_glass_keyboard())
-    except ValueError:
-        await message.reply("⚠️ ورودی نامعتبر! لطفاً فقط عدد وارد کنید.",
-                          reply_markup=get_glass_keyboard())
+    except ValueError as ve:
+        await message.reply(f"⚠️ {ve}", reply_markup=get_glass_keyboard())
     except Exception as e:
         await message.reply(f"❌ خطا در محاسبه: {str(e)}",
                           reply_markup=get_glass_keyboard())

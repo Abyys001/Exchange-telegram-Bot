@@ -2,12 +2,31 @@ from pathlib import Path
 from os import getcwd
 from pyrogram.types import KeyboardButton, ReplyKeyboardMarkup
 from pyrogram import emoji
+import traceback
+import logging
 
 from .data import (
     admin_id, turn_all_offers_false, toman_form,
     able_offers, price_offers, get_state, CHANNEL_ID
 )
 from .offer_pic_generator import offer_draw
+
+# ================= FIX: datetime import for offer_pic_generator =================
+# Patch: Ensure datetime is imported correctly in offer_pic_generator
+import sys
+import types
+
+# Patch the offer_pic_generator module if needed
+if ".offer_pic_generator" in sys.modules:
+    offer_pic_gen_mod = sys.modules[".offer_pic_generator"]
+elif "plugins.offer_pic_generator" in sys.modules:
+    offer_pic_gen_mod = sys.modules["plugins.offer_pic_generator"]
+else:
+    offer_pic_gen_mod = None
+
+if offer_pic_gen_mod and not hasattr(offer_pic_gen_mod, "datetime"):
+    import datetime as _real_datetime
+    offer_pic_gen_mod.datetime = _real_datetime
 
 # ============== SPECIAL OFFER HANDLER ==============
 
@@ -17,8 +36,17 @@ OFFER_LABELS = [
     "💲 خرید ویژه تتر",
     "💳 فروش ویژه از حساب",
     "💵 فروش ویژه نقدی",
-    "💲 فروش ویژه تتر",
+    "�� فروش ویژه تتر",
 ]
+# نگاشت لیبل‌های با ایموجی به لیبل‌های اصلی بدون ایموجی (مطابق data.py)
+OFFER_LABELS_MAP = {
+    "💵 خرید ویژه نقدی": "خرید ویژه نقدی",
+    "💳 خرید ویژه از حساب": "خرید ویژه از حساب",
+    "💲 خرید ویژه تتر": "خرید ویژه تتر",
+    "💵 فروش ویژه نقدی": "فروش ویژه نقدی",
+    "💳 فروش ویژه از حساب": "فروش ویژه از حساب",
+    "💲 فروش ویژه تتر": "فروش ویژه تتر",
+}
 FINALIZE_LABEL = "✅ نهایی‌سازی خرید/فروش ویژه"
 BACK_LABEL = "🔙 بازگشت به منوی اصلی"
 CANCEL_LABEL = "❌ انصراف"
@@ -74,86 +102,167 @@ async def special_offer(client, message, user_id=None, chat_id=None):
     """
     منوی خرید/فروش ویژه ادمین
     """
-    keyboard = get_offer_keyboard()
-    await client.send_message(
-        message.chat.id,
-        text="لطفاً نوع خرید یا فروش ویژه مورد نظر خود را انتخاب کنید:",
-        reply_markup=keyboard
-    )
-    answer = await client.listen(message.chat.id)
-    text = answer.text
+    try:
+        keyboard = get_offer_keyboard()
+        await client.send_message(
+            message.chat.id,
+            text="لطفاً نوع خرید یا فروش ویژه مورد نظر خود را انتخاب کنید:",
+            reply_markup=keyboard
+        )
+        answer = await client.listen(message.chat.id)
+        text = answer.text.strip() if answer.text else ""
 
-    if text in OFFER_LABELS:
-        await offer_handler(client, message, offer=text, user_id=user_id, chat_id=chat_id)
-    elif text == FINALIZE_LABEL:
-        await offer_finalize(client, message, user_id, chat_id)
-    elif text == BACK_LABEL:
-        await message.reply("✅ به منوی اصلی بازگشتید.")
-    else:
-        await message.reply("⚠️ لطفاً فقط از میان گزینه‌های موجود انتخاب کنید.")
-        await special_offer(client, message, user_id, chat_id)
+        if text in OFFER_LABELS:
+            await offer_handler(client, message, offer=text, user_id=user_id, chat_id=chat_id)
+        elif text == FINALIZE_LABEL:
+            await offer_finalize(client, message, user_id, chat_id)
+        elif text == BACK_LABEL:
+            await message.reply("✅ به منوی اصلی بازگشتید.")
+        else:
+            await message.reply("⚠️ لطفاً فقط از میان گزینه‌های موجود انتخاب کنید.")
+            await special_offer(client, message, user_id, chat_id)
+    except Exception as e:
+        logging.error(f"[special_offer] {e}\n{traceback.format_exc()}")
+        await message.reply(
+            f"❌ خطایی رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
+            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+        )
 
 async def offer_handler(client, message, offer, user_id=None, chat_id=None):
     """
     ثبت قیمت برای یک پیشنهاد ویژه
     """
-    await client.send_message(
-        message.chat.id,
-        text=f"💰 لطفاً قیمت {offer} را وارد کنید:",
-        reply_markup=get_cancel_keyboard()
-    )
-    offer_price = await client.listen(message.chat.id)
-    if offer_price.text == CANCEL_LABEL:
-        turn_all_offers_false()
-        await message.reply("⏪ عملیات لغو شد و به منوی اصلی بازگشتید.")
-        return
-
     try:
-        price = int(offer_price.text)
-    except ValueError:
-        await message.reply("❗️ لطفاً یک عدد معتبر وارد کنید.")
-        await offer_handler(client, message, offer, user_id=user_id, chat_id=chat_id)
-        return
+        await client.send_message(
+            message.chat.id,
+            text=f"💰 لطفاً قیمت {offer} را وارد کنید:",
+            reply_markup=get_cancel_keyboard()
+        )
+        offer_price = await client.listen(message.chat.id)
+        if not offer_price or not hasattr(offer_price, "text"):
+            await message.reply("❗️ ورودی نامعتبر است. لطفاً مجدداً تلاش کنید.")
+            return await offer_handler(client, message, offer, user_id=user_id, chat_id=chat_id)
 
-    turn_all_offers_false()
-    able_offers[offer] = True
-    price_offers[offer] = price
-    await message.reply(f"✅ قیمت {offer} با موفقیت به {toman_form(price)} تغییر یافت.")
-    await special_offer(
-        client,
-        message,
-        user_id or getattr(message, "from_user", None) and message.from_user.id,
-        chat_id or getattr(message, "chat", None) and message.chat.id
-    )
+        if offer_price.text == CANCEL_LABEL:
+            turn_all_offers_false()
+            await message.reply("⏪ عملیات لغو شد و به منوی اصلی بازگشتید.")
+            return
+
+        try:
+            price = int(offer_price.text.replace(",", "").replace(" ", ""))
+            if price <= 0:
+                raise ValueError
+        except Exception as e:
+            await message.reply(
+                f"❗️ لطفاً یک عدد معتبر وارد کنید.\n\n"
+                f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+            )
+            return await offer_handler(client, message, offer, user_id=user_id, chat_id=chat_id)
+
+        turn_all_offers_false()
+        # استفاده از نگاشت برای فعال‌سازی کلید صحیح
+        offer_key = OFFER_LABELS_MAP.get(offer, offer)
+        able_offers[offer_key] = True
+        price_offers[offer_key] = price
+        await message.reply(f"✅ قیمت {offer} با موفقیت به {toman_form(price)} تغییر یافت.")
+        await special_offer(
+            client,
+            message,
+            user_id or (getattr(message, "from_user", None) and message.from_user.id),
+            chat_id or (getattr(message, "chat", None) and message.chat.id)
+        )
+    except Exception as e:
+        logging.error(f"[offer_handler] {e}\n{traceback.format_exc()}")
+        await message.reply(
+            f"❌ خطایی در ثبت قیمت رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
+            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+        )
 
 async def offer_finalize(client, message, user_id, chat_id):
     """
     نهایی کردن قیمت‌های ویژه و ارسال به کانال
     """
     try:
-        offer_draw(get_state())
-        image_path = Path(getcwd()) / f"./assets/offer{get_state()}.png"
-        await message.reply_photo(image_path, caption=MAIN_TEXT)
-    except Exception:
-        await message.reply("⏳ لطفاً شکیبا باشید، در حال آماده‌سازی قیمت‌ها هستیم...")
-        return
+        try:
+            # Patch: Ensure offer_pic_generator has correct datetime
+            import sys
+            import datetime as _real_datetime
+            offer_pic_mod = None
+            if ".offer_pic_generator" in sys.modules:
+                offer_pic_mod = sys.modules[".offer_pic_generator"]
+            elif "plugins.offer_pic_generator" in sys.modules:
+                offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
+            if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
+                offer_pic_mod.datetime = _real_datetime
 
-    ask_msg = await client.send_message(
-        admin_id[0],
-        text="آیا از نهایی‌سازی قیمت‌های ویژه اطمینان دارید؟",
-        reply_markup=get_confirm_keyboard()
-    )
-    response = await client.listen(chat_id=admin_id[1], user_id=admin_id[0])
+            state = get_state()
+            if state is None:
+                await message.reply("❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.")
+                return
+            
+            offer_draw(state)
+            image_path = Path(getcwd()) / f"./assets/offer{state}.png"
+            await message.reply_photo(image_path, caption=MAIN_TEXT)
+        except Exception as e:
+            logging.error(f"[offer_finalize:draw] {e}\n{traceback.format_exc()}")
+            await message.reply(
+                f"⏳ لطفاً شکیبا باشید، در حال آماده‌سازی قیمت‌ها هستیم...\n\n"
+                f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+            )
+            return
 
-    if response.text == CONFIRM_LABEL:
-        offer_draw(get_state())
-        image_path = Path(getcwd()) / f"./assets/offer{get_state()}.png"
-        await client.send_photo(CHANNEL_ID, image_path, caption=MAIN_TEXT)
-        await client.delete_messages(admin_id[0], [response.id, ask_msg.id])
-        await client.send_message(
+        ask_msg = await client.send_message(
             admin_id[0],
-            text=f"🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد {emoji.SPARKLES}"
+            text="آیا از نهایی‌سازی قیمت‌های ویژه اطمینان دارید؟",
+            reply_markup=get_confirm_keyboard()
         )
-    elif response.text == DECLINE_LABEL:
-        await client.delete_messages(admin_id[0], ask_msg.id)
-        await client.send_message(admin_id[0], text="⏪ تغییرات ذخیره نشد و به منوی ویژه بازگشتید.")
+        response = await client.listen(chat_id=admin_id[1], user_id=admin_id[0])
+
+        if not response or not hasattr(response, "text"):
+            await client.send_message(admin_id[0], text="⏪ ورودی نامعتبر بود. عملیات لغو شد.")
+            return
+
+        if response.text == CONFIRM_LABEL:
+            try:
+                # Patch: Ensure offer_pic_generator has correct datetime
+                import sys
+                import datetime as _real_datetime
+                offer_pic_mod = None
+                if ".offer_pic_generator" in sys.modules:
+                    offer_pic_mod = sys.modules[".offer_pic_generator"]
+                elif "plugins.offer_pic_generator" in sys.modules:
+                    offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
+                if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
+                    offer_pic_mod.datetime = _real_datetime
+
+                state = get_state()
+                if state is None:
+                    await client.send_message(admin_id[0], "❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.")
+                    return
+                
+                offer_draw(state)
+                image_path = Path(getcwd()) / f"./assets/offer{state}.png"
+                await client.send_photo(CHANNEL_ID, image_path, caption=MAIN_TEXT)
+                await client.delete_messages(admin_id[0], [response.id, ask_msg.id])
+                await client.send_message(
+                    admin_id[0],
+                    text=f"🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد {emoji.SPARKLES}"
+                )
+            except Exception as e:
+                logging.error(f"[offer_finalize:send_photo] {e}\n{traceback.format_exc()}")
+                await client.send_message(
+                    admin_id[0],
+                    text=f"❌ خطا در ارسال به کانال. لطفاً بعداً تلاش کنید.\n\n"
+                         f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+                )
+        elif response.text == DECLINE_LABEL:
+            await client.delete_messages(admin_id[0], ask_msg.id)
+            await client.send_message(admin_id[0], text="⏪ تغییرات ذخیره نشد و به منوی ویژه بازگشتید.")
+        else:
+            await client.send_message(admin_id[0], text="⏪ گزینه نامعتبر بود. عملیات لغو شد.")
+    except Exception as e:
+        logging.error(f"[offer_finalize] {e}\n{traceback.format_exc()}")
+        await message.reply(
+            f"❌ خطایی در نهایی‌سازی قیمت‌ها رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
+            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+        )

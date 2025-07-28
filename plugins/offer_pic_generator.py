@@ -1,5 +1,5 @@
 from PIL import Image, ImageFont, ImageDraw
-from datetime import datetime
+import datetime
 import jdatetime
 from .data import *
 
@@ -7,7 +7,7 @@ from .data import *
 
 def get_current_times():
     """دریافت زمان فعلی میلادی و جلالی"""
-    now = datetime.now()
+    now = datetime.datetime.now()
     jalali = jdatetime.date.fromgregorian(day=now.day, month=now.month, year=now.year)
     return now, str(jalali).split("-")
 
@@ -21,7 +21,7 @@ def load_fonts(font_sizes=None):
         "price": 65
     }
     return {
-        "farsi_text": ImageFont.truetype("./assets/fonts/morabba.ttf", font_sizes["farsi_text"]),
+        "farsi_text": ImageFont.truetype("./assets/fonts/Morabba.ttf", font_sizes["farsi_text"]),
         "farsi_small": ImageFont.truetype("./assets/fonts/dirooz.ttf", font_sizes["farsi_small"]),
         "eng_text": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["eng_text"]),
         "eng_small": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["eng_small"]),
@@ -74,6 +74,12 @@ def add_date_to_news():
 
 def offer_draw(state):
     now, _ = get_current_times()
+    
+    # Check if state is None or invalid
+    if state is None or state < 1 or state > 6:
+        print("هیچ آفر فعالی موجود نیست یا وضعیت نامعتبر است.")
+        return
+    
     img_path = f"./assets/offer/offer{state}.png"
     img = Image.open(img_path).convert("RGBA")
     draw = ImageDraw.Draw(img)

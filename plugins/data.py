@@ -166,4 +166,15 @@ def toman_form(price):
         return s
     return "{:,}".format(int(s))
 
+def get_price(price_type):
+    """دریافت قیمت بر اساس نوع"""
+    return float(prices.get(price_type, 0))
+
+def get_tether_price(is_buy=True):
+    """دریافت قیمت تتر بر اساس خرید یا فروش"""
+    if is_buy:
+        return float(tether_price.get("tether_buy_irr", 0))
+    else:
+        return float(tether_price.get("tether_sell_irr", 0))
+
 ##############################################################################

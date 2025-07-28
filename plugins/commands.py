@@ -12,12 +12,12 @@ from pyromod import Client
 from .admin_panel import admin_main
 from .data import *
 from .Myfilters import check_member, not_admin
-from .convert import (
-    get_glass_keyboard,
-    get_glass_price_text,
-    show_glass_panel,
-    handle_glass_messages,
-)
+# from .convert import (
+#     get_glass_keyboard,
+#     get_glass_price_text,
+#     show_glass_panel,
+#     handle_glass_messages,
+# )
 
 # ===================== Filters =====================
 check_member_filter = filters.create(check_member)
@@ -61,6 +61,13 @@ async def start_command(client, message):
         return
 
 # هندلر برای دکمه ورود به تبدیل‌کننده
+# The imports for get_glass_keyboard and get_glass_price_text are currently commented out.
+# If you want to use them, you should uncomment the following lines at the top of your file:
+from .convert import (
+    get_glass_keyboard,
+    get_glass_price_text,
+)
+
 @Client.on_callback_query(filters.regex("^open_converter_panel$"))
 async def open_converter_panel_callback(client, callback_query):
     await callback_query.answer()
@@ -76,6 +83,6 @@ async def open_converter_panel_callback(client, callback_query):
     )
 
 # هندلر برای انتخاب گزینه از پنل تبدیل ارز (تبدیل شیشه‌ای)
-@Client.on_message(filters.text & ~filters.command(["start", "manage"]))
-async def glass_converter_text_handler(client, message):
-    await handle_glass_messages(client, message)
+# @Client.on_message(filters.text & ~filters.command(["start", "manage"]))
+# async def glass_converter_text_handler(client, message):
+#     await handle_glass_messages(client, message)
