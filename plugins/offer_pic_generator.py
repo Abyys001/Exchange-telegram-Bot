@@ -14,17 +14,19 @@ def get_current_times():
 def load_fonts(font_sizes=None):
     """لود فونت‌ها با اندازه‌های دلخواه"""
     font_sizes = font_sizes or {
-        "farsi_text": 67,
-        "farsi_small": 40,
-        "eng_text": 55,
-        "eng_small": 40,
+        "farsi_date": 67,
+        "farsi_weekday": 40,
+        "english_date": 55,
+        "english_weekday": 40,
+        "english_number": 55,  # فونت انگلیسی مخصوص عددی
         "price": 65
     }
     return {
-        "farsi_text": ImageFont.truetype("./assets/fonts/Morabba.ttf", font_sizes["farsi_text"]),
-        "farsi_small": ImageFont.truetype("./assets/fonts/dirooz.ttf", font_sizes["farsi_small"]),
-        "eng_text": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["eng_text"]),
-        "eng_small": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["eng_small"]),
+        "farsi_date": ImageFont.truetype("./assets/fonts/Morabba.ttf", font_sizes["farsi_date"]),
+        "farsi_weekday": ImageFont.truetype("./assets/fonts/dirooz.ttf", font_sizes["farsi_weekday"]),
+        "english_date": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", font_sizes["english_date"]),
+        "english_weekday": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", font_sizes["english_weekday"]),
+        "english_number": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["english_number"]),  # فونت انگلیسی برای عددی‌ها
         "price": ImageFont.truetype("./assets/fonts/montsrrat.otf", font_sizes["price"])
     }
 
@@ -53,20 +55,65 @@ def get_weekday_en(now):
 
 # ======================= Main Functions =======================
 
+# پوزیشن‌های دقیق هر متن روی بنر آفر
+OFFER_TEXT_POSITIONS = {
+    "farsi_date": (1900, 250),         # تاریخ شمسی
+    "farsi_weekday": (1860, 420),      # روز هفته شمسی
+    "english_date": (420, 250),        # تاریخ میلادی
+    "english_weekday": (580, 420),     # روز هفته میلادی
+    "price": (360, 2100),              # قیمت آفر
+    "tether_buy_irr": (1800, 1125),    # قیمت خرید تتر (ریال)
+    "tether_sell_irr": (370, 1125),    # قیمت فروش تتر (ریال)
+    "tether_buy_gbp": (1980, 2070),    # قیمت خرید تتر (پوند)
+    "tether_sell_gbp": (480, 2070),    # قیمت فروش تتر (پوند)
+}
+
+OFFER_FONT_SIZES = {
+    "farsi_date": 115,
+    "farsi_weekday": 86,
+    "english_date": 100,
+    "english_weekday": 95,
+    "english_number": 115,
+    "price": 220,
+    "tether_price": 230
+}
+
+def load_offer_fonts():
+    return {
+        "farsi_date": ImageFont.truetype("./assets/fonts/Morabba.ttf", OFFER_FONT_SIZES["farsi_date"]),
+        "farsi_weekday": ImageFont.truetype("./assets/fonts/Morabba.ttf", OFFER_FONT_SIZES["farsi_weekday"]),
+        "english_date": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", OFFER_FONT_SIZES["english_date"]),
+        "english_weekday": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", OFFER_FONT_SIZES["english_weekday"]),
+        "english_number": ImageFont.truetype("./assets/fonts/montsrrat.otf", OFFER_FONT_SIZES["english_number"]),
+        "price": ImageFont.truetype("./assets/fonts/montsrrat.otf", OFFER_FONT_SIZES["price"]),
+        "tether_price": ImageFont.truetype("./assets/fonts/montsrrat.otf", OFFER_FONT_SIZES["tether_price"])
+    }
+
 def add_date_to_news():
     now, jalali = get_current_times()
     img = Image.open("./assets/news/news.png").convert("RGBA")
     draw = ImageDraw.Draw(img)
     fonts = load_fonts()
 
-    positions = [(1060, 160), (1050, 35), (105, 180), (55, 65)]
-    texts = [
-        f"{jalali[0]}/{jalali[1]}/{jalali[2]}",
-        get_weekday_fa(now),
-        f"{now.year}/{now.day}/{now.month}",
-        get_weekday_en(now)
+    # پوزیشن‌ها و فونت‌ها و متن‌ها به صورت واضح
+    positions = [
+        (1060, 160),  # تاریخ شمسی
+        (1050, 35),   # روز هفته شمسی
+        (105, 180),   # تاریخ میلادی
+        (55, 65)      # روز هفته میلادی
     ]
-    font_list = [fonts["farsi_small"], fonts["farsi_text"], fonts["eng_small"], fonts["eng_text"]]
+    texts = [
+        f"{jalali[0]}/{jalali[1]}/{jalali[2]}",  # تاریخ شمسی
+        get_weekday_fa(now),                     # روز هفته شمسی
+        f"{now.year}/{now.day}/{now.month}",     # تاریخ میلادی
+        get_weekday_en(now)                      # روز هفته میلادی
+    ]
+    font_list = [
+        fonts["farsi_date"],
+        fonts["farsi_weekday"],
+        fonts["english_number"],
+        fonts["english_date"]
+    ]
     colors = [(255, 255, 255)] * 4
 
     draw_text(draw, positions, texts, font_list, colors)
@@ -74,38 +121,41 @@ def add_date_to_news():
 
 def offer_draw(state):
     now, _ = get_current_times()
-    
     # Check if state is None or invalid
     if state is None or state < 1 or state > 6:
-        print("هیچ آفر فعالی موجود نیست یا وضعیت نامعتبر است.")
+        # فقط در حالت تست پرینت کن
+        if __name__ == "__main__":
+            print("هیچ آفر فعالی موجود نیست یا وضعیت نامعتبر است.")
         return
-    
+
     img_path = f"./assets/offer/offer{state}.png"
     img = Image.open(img_path).convert("RGBA")
     draw = ImageDraw.Draw(img)
 
-    # فونت‌ها با اندازه‌های مخصوص این بخش
-    fonts = {
-        "farsi_text": ImageFont.truetype("./assets/fonts/Morabba.ttf", 86),
-        "farsi_small": ImageFont.truetype("./assets/fonts/Morabba.ttf", 86),
-        "eng_text": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", 83),
-        "eng_small": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", 95),
-        "price": ImageFont.truetype("./assets/fonts/montsrrat.otf", 220)
-    }
-
-    positions = [(1900, 265), (1860, 420), (420, 250), (580, 420)]
-    texts = [
-        get_farsi_date_str(),
-        get_weekday_fa(now),
-        get_english_date_str(now),
-        get_weekday_en(now)
+    fonts = load_offer_fonts()
+    # پوزیشن‌ها و متن‌ها و فونت‌ها به صورت واضح
+    positions = [
+        OFFER_TEXT_POSITIONS["farsi_date"],
+        OFFER_TEXT_POSITIONS["farsi_weekday"],
+        OFFER_TEXT_POSITIONS["english_date"],
+        OFFER_TEXT_POSITIONS["english_weekday"]
     ]
-    font_list = [fonts["farsi_small"], fonts["farsi_text"], fonts["eng_small"], fonts["eng_text"]]
+    texts = [
+        get_farsi_date_str(),         # تاریخ شمسی
+        get_weekday_fa(now),          # روز هفته شمسی
+        get_english_date_str(now),    # تاریخ میلادی
+        get_weekday_en(now)           # روز هفته میلادی
+    ]
+    font_list = [
+        fonts["farsi_date"],
+        fonts["farsi_weekday"],
+        fonts["english_number"],
+        fonts["english_date"]
+    ]
     colors = [(255, 255, 255)] * 4
 
     draw_text(draw, positions, texts, font_list, colors)
 
-    # آفرها و فایل خروجی مربوطه
     offers = [
         ("خرید ویژه نقدی", "offer1.png"),
         ("خرید ویژه از حساب", "offer2.png"),
@@ -118,7 +168,7 @@ def offer_draw(state):
     for offer_name, filename in offers:
         if able_offers.get(offer_name):
             draw.text(
-                (360, 2030),
+                OFFER_TEXT_POSITIONS["price"],
                 toman_form(price_offers[offer_name]),
                 font=fonts["price"],
                 fill=(0, 0, 0)
@@ -126,46 +176,52 @@ def offer_draw(state):
             img.save(f"./assets/{filename}")
             break
     else:
-        print("هیچ آفر فعالی موجود نیست.")
+        # فقط در حالت تست پرینت کن
+        if __name__ == "__main__":
+            print("هیچ آفر فعالی موجود نیست.")
 
 def create_image_for_tether_offer():
     now, _ = get_current_times()
     img = Image.open("./assets/offer/tether_buy_sell.png").convert("RGBA")
     draw = ImageDraw.Draw(img)
 
-    fonts = {
-        "farsi_text": ImageFont.truetype("./assets/fonts/Morabba.ttf", 86),
-        "farsi_small": ImageFont.truetype("./assets/fonts/Morabba.ttf", 86),
-        "eng_text": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", 83),
-        "eng_small": ImageFont.truetype("./assets/fonts/YekanBakh.ttf", 95),
-        "price": ImageFont.truetype("./assets/fonts/montsrrat.otf", 230)
-    }
-
-    positions = [(1900, 265), (1860, 420), (420, 250), (580, 420)]
+    fonts = load_offer_fonts()
+    positions = [
+        OFFER_TEXT_POSITIONS["farsi_date"],
+        OFFER_TEXT_POSITIONS["farsi_weekday"],
+        OFFER_TEXT_POSITIONS["english_date"],
+        OFFER_TEXT_POSITIONS["english_weekday"]
+    ]
     texts = [
         get_farsi_date_str(),
         get_weekday_fa(now),
         get_english_date_str(now),
         get_weekday_en(now)
     ]
-    font_list = [fonts["farsi_small"], fonts["farsi_text"], fonts["eng_small"], fonts["eng_text"]]
+    font_list = [
+        fonts["farsi_date"],
+        fonts["farsi_weekday"],
+        fonts["english_number"],
+        fonts["english_date"]
+    ]
     colors = [(255, 255, 255)] * 4
 
     draw_text(draw, positions, texts, font_list, colors)
 
-    price_positions = [
-        (1800, 1125),
-        (370, 1125),
-        (1980, 2070),
-        (480, 2070),
+    # پوزیشن‌های قیمت تتر به صورت واضح
+    tether_price_positions = [
+        OFFER_TEXT_POSITIONS["tether_buy_irr"],
+        OFFER_TEXT_POSITIONS["tether_sell_irr"],
+        OFFER_TEXT_POSITIONS["tether_buy_gbp"],
+        OFFER_TEXT_POSITIONS["tether_sell_gbp"]
     ]
 
     for i, offer in enumerate(tether_price.keys()):
-        if i < len(price_positions):
+        if i < len(tether_price_positions):
             draw.text(
-                price_positions[i],
+                tether_price_positions[i],
                 str(tether_price[offer]),
-                font=fonts["price"],
+                font=fonts["tether_price"],
                 fill=(0, 0, 0)
             )
 
@@ -173,24 +229,110 @@ def create_image_for_tether_offer():
     img.save(save_path)
     return save_path
 
-    
-    
-    for i, offer in enumerate(list(tether_price.keys())):
-        draw.text(
-            position[i],
-            str(tether_price[offer]),
-            font=fonts["price"],
-            fill=(0, 0, 0)
-        )
-
-    save_path = "./assets/eth_offer.png"
-    
-    img.save(save_path) 
-    return save_path
-    
-
-# ======================= Auto Run =======================
+# ======================= Test Mode =======================
 if __name__ == "__main__":
-    create_image_for_tether_offer()
+    # حالت تستی: تمام آفرها فعال و قیمت تستی
+    import copy
 
-    
+    TEST_PRICE = 128000
+
+    offers = [
+        ("خرید ویژه نقدی", "offer1.png"),
+        ("خرید ویژه از حساب", "offer2.png"),
+        ("خرید ویژه تتر", "offer3.png"),
+        ("فروش ویژه نقدی", "offer4.png"),
+        ("فروش ویژه از حساب", "offer5.png"),
+        ("فروش ویژه تتر", "offer6.png"),
+    ]
+
+    tether_offer_keys = list(tether_price.keys())
+    test_tether_prices = {k: TEST_PRICE for k in tether_offer_keys}
+
+    now, jalali = get_current_times()
+
+    fonts = load_offer_fonts()
+    # پوزیشن‌ها و فونت‌ها به صورت واضح
+    positions = [
+        OFFER_TEXT_POSITIONS["farsi_date"],
+        OFFER_TEXT_POSITIONS["farsi_weekday"],
+        OFFER_TEXT_POSITIONS["english_date"],
+        OFFER_TEXT_POSITIONS["english_weekday"]
+    ]
+    price_position = OFFER_TEXT_POSITIONS["price"]
+    tether_price_positions = [
+        OFFER_TEXT_POSITIONS["tether_buy_irr"],
+        OFFER_TEXT_POSITIONS["tether_sell_irr"],
+        OFFER_TEXT_POSITIONS["tether_buy_gbp"],
+        OFFER_TEXT_POSITIONS["tether_sell_gbp"]
+    ]
+
+    for idx, (offer_name, filename) in enumerate(offers, 1):
+        try:
+            img_path = f"./assets/offer/offer{idx}.png"
+            img = Image.open(img_path).convert("RGBA")
+            draw = ImageDraw.Draw(img)
+
+            texts = [
+                f"{jalali[0]}/{jalali[1]}/{jalali[2]}",  # تاریخ شمسی
+                get_weekday_fa(now),                     # روز هفته شمسی
+                f"{now.year}/{now.day}/{now.month}",     # تاریخ میلادی
+                get_weekday_en(now)                      # روز هفته میلادی
+            ]
+            font_list = [
+                fonts["farsi_date"],
+                fonts["farsi_weekday"],
+                fonts["english_number"],
+                fonts["english_date"]
+            ]
+            colors = [(255, 255, 255)] * 4
+
+            draw_text(draw, positions, texts, font_list, colors)
+
+            draw.text(
+                price_position,
+                toman_form(TEST_PRICE),
+                font=fonts["price"],
+                fill=(0, 0, 0)
+            )
+            img.save(f"./assets/{filename}")
+            print(f"✅ Test banner {filename} created.")
+        except Exception as e:
+            print(f"❌ Error creating test banner {filename}: {e}")
+            import traceback
+            print(traceback.format_exc())
+
+    # تولید بنر تتر تستی
+    try:
+        img = Image.open("./assets/offer/tether_buy_sell.png").convert("RGBA")
+        draw = ImageDraw.Draw(img)
+
+        texts = [
+            f"{jalali[0]}/{jalali[1]}/{jalali[2]}",  # تاریخ شمسی
+            get_weekday_fa(now),                     # روز هفته شمسی
+            f"{now.year}/{now.day}/{now.month}",     # تاریخ میلادی
+            get_weekday_en(now)                      # روز هفته میلادی
+        ]
+        font_list = [
+            fonts["farsi_date"],
+            fonts["farsi_weekday"],
+            fonts["english_number"],
+            fonts["english_date"]
+        ]
+        colors = [(255, 255, 255)] * 4
+
+        draw_text(draw, positions, texts, font_list, colors)
+
+        for i, offer in enumerate(tether_offer_keys):
+            if i < len(tether_price_positions):
+                draw.text(
+                    tether_price_positions[i],
+                    str(TEST_PRICE),
+                    font=fonts["tether_price"],
+                    fill=(0, 0, 0)
+                )
+
+        save_path = "./assets/eth_offer.png"
+        img.save(save_path)
+        print(f"✅ Test Tether banner created: {save_path}")
+    except Exception as e:
+        print(f"❌ Error creating test Tether banner: {e}")

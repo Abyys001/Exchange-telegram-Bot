@@ -11,8 +11,6 @@ from .data import (
 )
 from .offer_pic_generator import offer_draw
 
-# ================= FIX: datetime import for offer_pic_generator =================
-# Patch: Ensure datetime is imported correctly in offer_pic_generator
 import sys
 import types
 
@@ -266,3 +264,43 @@ async def offer_finalize(client, message, user_id, chat_id):
             f"❌ خطایی در نهایی‌سازی قیمت‌ها رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
             f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
         )
+
+# ================== TEST MODE ==================
+if __name__ == "__main__":
+    # حالت تستی: وقتی این فایل مستقیماً اجرا شود، همه قیمت‌ها را روی 128000 می‌گذارد و بنرها را تولید می‌کند
+    import time
+
+    # لیست کلیدهای آفر (بدون ایموجی)
+    offer_keys = [
+        "خرید ویژه نقدی",
+        "خرید ویژه از حساب",
+        "خرید ویژه تتر",
+        "فروش ویژه نقدی",
+        "فروش ویژه از حساب",
+        "فروش ویژه تتر",
+    ]
+    # همه آفرها فعال و قیمت تستی
+    for k in offer_keys:
+        able_offers[k] = True
+        price_offers[k] = 128000
+
+    # تابع تستی برای تولید همه بنرها
+    def test_generate_all_banners():
+        print("در حال تولید بنرهای تستی با قیمت 128000 ...")
+        for idx, k in enumerate(offer_keys, 1):
+            try:
+                # فرض بر این است که state همان ایندکس است (یا هر مقدار مورد نیاز offer_draw)
+                offer_draw(idx)
+                image_path = Path(getcwd()) / f"./assets/offer{idx}.png"
+                if image_path.exists():
+                    print(f"✅ بنر {k} ساخته شد: {image_path}")
+                else:
+                    print(f"❌ بنر {k} ساخته نشد!")
+            except Exception as e:
+                print(f"❌ خطا در ساخت بنر {k}: {e}")
+                import traceback
+                print(traceback.format_exc())
+            time.sleep(0.5)
+        print("تمام بنرهای تستی ساخته شدند.")
+
+    test_generate_all_banners()

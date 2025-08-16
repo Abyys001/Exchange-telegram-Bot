@@ -16,7 +16,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 CHANNEL_ID = "@sarafipardis"
 # CHANNEL_ID = "@pardis_addon"
 
-ADMINS = [558994996, 474945045, 672452907]
+ADMINS = [558994996, 474945045, 672452907, 1664374014]
 
 let_keyboard = True
 
