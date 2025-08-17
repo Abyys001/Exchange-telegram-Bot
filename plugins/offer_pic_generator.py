@@ -14,11 +14,11 @@ def get_current_times():
 def load_fonts(font_sizes=None):
     """لود فونت‌ها با اندازه‌های دلخواه"""
     font_sizes = font_sizes or {
-        "farsi_date": 67,
-        "farsi_weekday": 40,
-        "english_date": 55,
+        "farsi_date": 130,
+        "farsi_weekday": 82,
+        "english_date": 105,
         "english_weekday": 40,
-        "english_number": 55,  # فونت انگلیسی مخصوص عددی
+        "english_number": 115,  # فونت انگلیسی مخصوص عددی
         "price": 65
     }
     return {
@@ -89,7 +89,7 @@ def load_offer_fonts():
         "tether_price": ImageFont.truetype("./assets/fonts/montsrrat.otf", OFFER_FONT_SIZES["tether_price"])
     }
 
-def add_date_to_news():
+def add_date_to_news(news_text=None):
     now, jalali = get_current_times()
     img = Image.open("./assets/news/news.png").convert("RGBA")
     draw = ImageDraw.Draw(img)
@@ -97,10 +97,10 @@ def add_date_to_news():
 
     # پوزیشن‌ها و فونت‌ها و متن‌ها به صورت واضح
     positions = [
-        (1060, 160),  # تاریخ شمسی
-        (1050, 35),   # روز هفته شمسی
-        (105, 180),   # تاریخ میلادی
-        (55, 65)      # روز هفته میلادی
+        (1900, 240),  # تاریخ شمسی
+        (1850, 400),   # روز هفته شمسی
+        (400, 240),   # تاریخ میلادی
+        (600, 400)      # روز هفته میلادی
     ]
     texts = [
         f"{jalali[0]}/{jalali[1]}/{jalali[2]}",  # تاریخ شمسی
@@ -117,6 +117,60 @@ def add_date_to_news():
     colors = [(255, 255, 255)] * 4
 
     draw_text(draw, positions, texts, font_list, colors)
+    
+    # اضافه کردن متن خبر به تصویر
+    if news_text:
+        # فونت برای متن خبر
+        news_font = ImageFont.truetype("./assets/fonts/Morabba.ttf", 150)
+        
+        # پوزیشن متن خبر (مرکز تصویر)
+        text_position = (1500, 1900)
+        
+        # تقسیم متن به خطوط برای نمایش بهتر
+        max_width = 2500  # حداکثر عرض متن
+        max_height = 1500  # حداکثر طول متن 
+        words = news_text.split()
+        lines = []
+        current_line = ""
+        
+        for word in words:
+            test_line = current_line + " " + word if current_line else word
+            # تخمین عرض متن
+            bbox = draw.textbbox((0, 0), test_line, font=news_font)
+            text_width = bbox[2] - bbox[0]
+            
+            if text_width <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+
+        if current_line:
+            lines.append(current_line)
+        
+        # محاسبه ارتفاع هر خط و تنظیم خطوط برای قرار گرفتن در باکس ارتفاعی
+        # فاصله بین خطوط را افزایش می‌دهیم (مثلاً 120 پیکسل به جای 60)
+        line_height = 120
+        total_text_height = len(lines) * line_height
+        # اگر متن از حداکثر ارتفاع بیشتر شد، خطوط اضافی حذف می‌شوند و ... اضافه می‌شود
+        max_lines = max_height // line_height
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            # آخرین خط را با ... تمام کن
+            if len(lines[-1]) > 3:
+                lines[-1] = lines[-1][:-3] + "..."
+            else:
+                lines[-1] = "..."
+            total_text_height = max_lines * line_height
+
+        # رسم هر خط متن
+        start_y = text_position[1] - (total_text_height - line_height) // 2
+        
+        for i, line in enumerate(lines):
+            y_pos = start_y + i * line_height
+            draw.text((text_position[0], y_pos), line, font=news_font, fill=(255, 255, 255), anchor="mm")
+    
     img.save("./assets/news_date.png")
 
 def offer_draw(state):
@@ -266,6 +320,7 @@ if __name__ == "__main__":
         OFFER_TEXT_POSITIONS["tether_sell_gbp"]
     ]
 
+    # تست بنرهای آفر
     for idx, (offer_name, filename) in enumerate(offers, 1):
         try:
             img_path = f"./assets/offer/offer{idx}.png"
@@ -336,3 +391,18 @@ if __name__ == "__main__":
         print(f"✅ Test Tether banner created: {save_path}")
     except Exception as e:
         print(f"❌ Error creating test Tether banner: {e}")
+
+    # ======================= تست بنر خبر =======================
+    try:
+        # تست ساده: فقط تاریخ و روز هفته
+        add_date_to_news()
+        print("✅ Test news banner (date only) created: ./assets/news_date.png")
+
+        # تست با متن خبر
+        test_news_text = "صرافی پردیس در خدمت شما دانشجو های عزیز میباشد"
+        add_date_to_news(test_news_text)
+        print("✅ Test news banner (with text) created: ./assets/news_date.png")
+    except Exception as e:
+        print(f"❌ Error creating test news banner: {e}")
+        import traceback
+        print(traceback.format_exc())

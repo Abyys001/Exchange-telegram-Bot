@@ -1,14 +1,14 @@
 from pathlib import Path
 from os import getcwd
 from pyrogram.types import (
-    ReplyKeyboardMarkup,
-    KeyboardButton,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-
+from pyrogram import filters
+from pyromod import Client
 from .offer_pic_generator import create_image_for_tether_offer
 from .data import toman_form, tether_price, admin_id, CHANNEL_ID
+from .message_manager import message_manager, get_back_button
 
 STOP_KEY = "↩️ بازگشت"
 
@@ -64,111 +64,255 @@ FINAL_CONFIRM_ACTIONS = [
     "❌ خیر"
 ]
 
-def get_reply_keyboard(buttons, resize=True, one_time=True):
+def get_inline_keyboard(buttons, callback_prefix=""):
     """
-    ساخت کیبورد ریپلای با دکمه‌های داده شده
+    ساخت کیبورد اینلاین با دکمه‌های داده شده
     """
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton(text) for text in row] if isinstance(row, list) else [KeyboardButton(row)]
-            for row in buttons
-        ],
-        resize_keyboard=resize,
-        one_time_keyboard=one_time
-    )
+    keyboard_buttons = []
+    for i, row in enumerate(buttons):
+        row_buttons = []
+        for j, text in enumerate(row if isinstance(row, list) else [row]):
+            callback_data = f"{callback_prefix}_{i}_{j}" if callback_prefix else f"tether_{i}_{j}"
+            row_buttons.append(InlineKeyboardButton(text, callback_data=callback_data))
+        keyboard_buttons.append(row_buttons)
+    return InlineKeyboardMarkup(keyboard_buttons)
 
 async def tether_price_menu(client, message):
     """
     منوی انتخاب نوع قیمت تتر
     """
-    keyboard = get_reply_keyboard(TETHER_BUTTONS + [[STOP_KEY]])
-    await message.reply(
-        "لطفاً نوع قیمت تتر مورد نظر خود را انتخاب کنید 👇",
-        reply_markup=keyboard
-    )
-    response = await client.listen(chat_id=admin_id[0], user_id=admin_id[1])
-
-    text = (response.text or "").strip()
-    if text in TETHER_BUTTONS_TRANSLATE:
-        await ask_price_value(client, message, tether_form=TETHER_BUTTONS_TRANSLATE[text])
-    elif text == STOP_KEY:
-        await tether_main_menu(client, message)
+    user_id = message.from_user.id if hasattr(message, 'from_user') else None
+    chat_id = message.chat.id
+    
+    keyboard = get_inline_keyboard(TETHER_BUTTONS + [[STOP_KEY]], "tether_price")
+    keyboard.inline_keyboard.append([get_back_button("back_to_admin", "🔙 بازگشت به پنل ادمین")])
+    
+    if user_id:
+        await message_manager.send_clean_message(
+            client, chat_id,
+            "لطفاً نوع قیمت تتر مورد نظر خود را انتخاب کنید 👇",
+            keyboard, user_id
+        )
     else:
-        await message.reply("❗️ لطفاً یکی از گزینه‌های موجود را انتخاب کنید.")
-        await tether_price_menu(client, message)
+        await message.reply(
+            "لطفاً نوع قیمت تتر مورد نظر خود را انتخاب کنید 👇",
+            reply_markup=keyboard
+        )
+
+# ============== Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^tether_price_0_0$"))  # 🟢 خرید تتر ریال
+async def tether_buy_irr_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await ask_price_value(client, callback_query.message, tether_form="tether_buy_irr")
+
+@Client.on_callback_query(filters.regex("^tether_price_0_1$"))  # 🔴 فروش تتر ریال
+async def tether_sell_irr_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await ask_price_value(client, callback_query.message, tether_form="tether_sell_irr")
+
+@Client.on_callback_query(filters.regex("^tether_price_1_0$"))  # 🟢 خرید تتر پوند
+async def tether_buy_gbp_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await ask_price_value(client, callback_query.message, tether_form="tether_buy_gbp")
+
+@Client.on_callback_query(filters.regex("^tether_price_1_1$"))  # 🔴 فروش تتر پوند
+async def tether_sell_gbp_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await ask_price_value(client, callback_query.message, tether_form="tether_sell_gbp")
+
+@Client.on_callback_query(filters.regex("^tether_price_2_0$"))  # ↩️ بازگشت
+async def tether_back_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await tether_main_menu(client, callback_query.message)
 
 async def tether_main_menu(client, message):
     """
     منوی اصلی تنظیمات تتر
     """
-    keyboard = get_reply_keyboard([[action] for action in MAIN_MENU_ACTIONS])
-    await message.reply(
-        "👋 به منوی مدیریت قیمت‌های تتر خوش آمدید!\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
-        reply_markup=keyboard
-    )
-    response = await client.listen(chat_id=admin_id[0], user_id=admin_id[1])
-
-    text = (response.text or "").strip()
-    if text == MAIN_MENU_ACTIONS[0]:
-        await tether_price_menu(client, message)
-    elif text == MAIN_MENU_ACTIONS[1]:
-        await tether_final(client, message)
-    elif text == MAIN_MENU_ACTIONS[2]:
-        return
+    user_id = message.from_user.id if hasattr(message, 'from_user') else None
+    chat_id = message.chat.id
+    
+    keyboard = get_inline_keyboard([[action] for action in MAIN_MENU_ACTIONS], "tether_main")
+    keyboard.inline_keyboard.append([get_back_button("back_to_admin", "🔙 بازگشت به پنل ادمین")])
+    
+    if user_id:
+        await message_manager.send_clean_message(
+            client, chat_id,
+            "👋 به منوی مدیریت قیمت‌های تتر خوش آمدید!\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            keyboard, user_id
+        )
     else:
-        await message.reply("❗️ گزینه انتخابی معتبر نیست. لطفاً مجدداً انتخاب کنید.")
-        await tether_main_menu(client, message)
+        await message.reply(
+            "👋 به منوی مدیریت قیمت‌های تتر خوش آمدید!\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            reply_markup=keyboard
+        )
+
+# ============== Main Menu Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^tether_main_0_0$"))  # 📝 تنظیم قیمت‌ها
+async def tether_set_prices_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await tether_price_menu(client, callback_query.message)
+
+@Client.on_callback_query(filters.regex("^tether_main_1_0$"))  # ✅ نهایی‌سازی
+async def tether_finalize_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await tether_final(client, callback_query.message)
+
+@Client.on_callback_query(filters.regex("^tether_main_2_0$"))  # ↩️ بازگشت
+async def tether_main_back_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    return
 
 async def ask_price_value(client, message, tether_form):
     """
     دریافت مقدار قیمت از ادمین و ثبت آن
     """
+    user_id = message.from_user.id
     chat_id = message.chat.id
-    await client.send_message(
-        message.from_user.id,
-        "لطفاً مقدار قیمت مورد نظر را به عدد وارد کنید (مثال: ۵۸۵۰۰):"
-    )
-    response = await client.listen(chat_id=admin_id[0], user_id=admin_id[1])
 
-    text = (response.text or "").strip()
+    await message.reply("لطفاً مقدار قیمت مورد نظر را به عدد وارد کنید (مثال: ۵۸۵۰۰):")
+    
+    # صبر میکنیم پیام بعدی کاربر در همین چت
+    response = await client.listen(chat_id=chat_id)
+
+    if not response or not response.text:
+        await client.send_message(chat_id, "❗ ورودی نامعتبر است.")
+        return await tether_price_menu(client, message)
+
+    text = response.text.strip()
+
     if text == STOP_KEY:
-        await tether_price_menu(client, message)
-        return
+        return await tether_price_menu(client, message)
 
     try:
         value = float(text)
         formatted_price = toman_form(int(value)) if value.is_integer() else str(value)
         tether_price[tether_form] = formatted_price
-        await client.send_message(chat_id, text="✅ قیمت تتر با موفقیت ثبت و بروزرسانی شد.")
-    except ValueError:
-        await client.send_message(chat_id, text="⚠️ لطفاً فقط عدد معتبر وارد کنید.")
-    except Exception:
-        await client.send_message(chat_id, text="⛔️ مشکلی در ثبت قیمت پیش آمد. لطفاً دوباره تلاش کنید.")
+        await client.send_message(chat_id, f"✅ قیمت با موفقیت ذخیره شد: {formatted_price}")
+    except:
+        await client.send_message(chat_id, "⚠️ لطفاً فقط عدد صحیح وارد کنید.")
+    
     await tether_price_menu(client, message)
 
 async def tether_final(client, message):
     """
     ارسال عکس و پیام نهایی به ادمین و کانال
     """
-    image_path = Path(getcwd()) / create_image_for_tether_offer()
-    await message.reply_photo(image_path, caption=FINAL_MESSAGE, reply_markup=FINAL_KEYBOARD)
+    try:
+        image_path = Path(getcwd()) / create_image_for_tether_offer()
+        await message.reply_photo(image_path, caption=FINAL_MESSAGE, reply_markup=FINAL_KEYBOARD)
+    except Exception as e:
+        print(f"[tether_final] Error sending photo: {e}")
+        await message.reply("⛔️ خطا در ارسال عکس و پیام نهایی.")
+        return
 
-    keyboard = get_reply_keyboard([FINAL_CONFIRM_ACTIONS])
+    keyboard = get_inline_keyboard([FINAL_CONFIRM_ACTIONS], "tether_final")
     await message.reply(
         "آیا از نهایی‌سازی و ارسال قیمت‌ها به کانال اطمینان دارید؟\n\n"
         "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
         reply_markup=keyboard
     )
-    response = await client.listen(chat_id=admin_id[0], user_id=admin_id[1])
 
-    text = (response.text or "").strip()
-    if text == FINAL_CONFIRM_ACTIONS[0]:
-        await message.reply("⏳ در حال نهایی‌سازی و ارسال به کانال...")
+# ============== Final Confirmation Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^tether_final_0_0$"))  # ✅ بله
+async def tether_final_confirm_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    await message_manager.send_clean_message(
+        client, chat_id, "⏳ در حال نهایی‌سازی و ارسال به کانال...", None, user_id
+    )
+    
+    try:
+        image_path = Path(getcwd()) / create_image_for_tether_offer()
         await client.send_photo(CHANNEL_ID, image_path, caption=FINAL_MESSAGE, reply_markup=FINAL_KEYBOARD)
-        await message.reply("✅ نهایی‌سازی با موفقیت انجام شد و قیمت‌ها به کانال ارسال گردید!")
-    elif text == FINAL_CONFIRM_ACTIONS[1]:
-        await message.reply("❌ عملیات نهایی‌سازی لغو شد.")
+    except Exception as e:
+        print(f"[tether_final_confirm_handler] Error sending photo to channel: {e}")
+        error_text = f"⛔️ خطا در ارسال به کانال: {str(e)}"
+        await message_manager.send_clean_message(
+            client, chat_id, error_text, None, user_id
+        )
         return
-    else:
-        await message.reply("لطفاً یکی از گزینه‌های زیر را انتخاب کنید.")
-        await tether_final(client, message)
+    
+    # ارسال پیام موفقیت و بازگشت به پنل ادمین
+    success_message = "✅ نهایی‌سازی با موفقیت انجام شد و قیمت‌ها به کانال ارسال گردید!"
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
+    ])
+    
+    await message_manager.send_clean_message(
+        client, chat_id, success_message, keyboard, user_id
+    )
+
+@Client.on_callback_query(filters.regex("^tether_final_0_1$"))  # ❌ خیر
+async def tether_final_decline_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    # بازگشت به پنل ادمین
+    try:
+        from .admin_panel import admin_panel
+        await admin_panel(client, callback_query.message, user_id, chat_id)
+    except Exception as e:
+        print(f"[tether_final_decline_handler] Error returning to admin panel: {e}")
+        await client.send_message(chat_id, text=f"⛔️ خطا در بازگشت به پنل ادمین: {str(e)}")

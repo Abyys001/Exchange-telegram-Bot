@@ -1,10 +1,13 @@
 from pathlib import Path
 from os import getcwd
-from pyrogram.types import KeyboardButton, ReplyKeyboardMarkup
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram import emoji
+from pyromod import Client
+from pyrogram import filters
 
 from .data import admin_id, CHANNEL_ID
 from .offer_pic_generator import add_date_to_news
+from .message_manager import message_manager, get_back_button
 
 # ============== NEWS HANDLER ==============
 
@@ -57,7 +60,7 @@ N12 9QL</u>
 
     # مرحله آماده‌سازی و ارسال عکس پیش‌نمایش
     try:
-        add_date_to_news()
+        add_date_to_news(news_text)
         data_folder = Path(getcwd())
         image_to_open = data_folder / "assets" / "news_date.png"
         await message.reply_photo(str(image_to_open), caption=text)
@@ -65,16 +68,13 @@ N12 9QL</u>
         await message.reply(f"⏳ لطفاً شکیبا باشید، تصویر اعلان در حال آماده‌سازی است...\n\n❌ خطا: {e}")
         return
 
-    yes_or_no = ReplyKeyboardMarkup(
+    yes_or_no = InlineKeyboardMarkup([
         [
-            [
-                KeyboardButton("✅ بله، منتشر کن"),
-                KeyboardButton("🔄 خیر، نیاز به ویرایش دارم")
-            ]
+            InlineKeyboardButton("✅ بله، منتشر کن", callback_data="news_publish"),
+            InlineKeyboardButton("🔄 خیر، نیاز به ویرایش دارم", callback_data="news_edit")
         ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+        [get_back_button("back_to_admin", "🔙 بازگشت به پنل ادمین")]
+    ])
 
     try:
         ask_user = await client.send_message(
@@ -86,44 +86,54 @@ N12 9QL</u>
         await message.reply(f"❌ خطا در ارسال پیام تایید انتشار به ادمین:\n{e}")
         return
 
-    try:
-        response = await client.listen(chat_id=admin_id[0], user_id=admin_id[1])
-    except Exception as e:
-        await message.reply(f"❌ خطا در دریافت پاسخ ادمین:\n{e}")
-        return
+# ============== News Callback Handlers ==============
 
+@Client.on_callback_query(filters.regex("^news_publish$"))
+async def news_publish_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
     try:
-        if response.text == "✅ بله، منتشر کن":
-            try:
-                add_date_to_news()
-                data_folder = Path(getcwd())
-                image_to_open = data_folder / "assets" / "news_date.png"
-                await client.send_photo(CHANNEL_ID, str(image_to_open), caption=text)
-                await client.delete_messages(admin_id[0], [response.id, ask_user.id])
-                await client.send_message(
-                    admin_id[0],
-                    text=f"✅ اعلان شما با موفقیت منتشر شد! {emoji.THUMBS_UP_LIGHT_SKIN_TONE}"
-                )
-            except Exception as e:
-                await client.send_message(
-                    admin_id[0],
-                    text=f"❌ خطا در انتشار اعلان:\n{e}"
-                )
-                await message.reply(f"❌ خطا در انتشار اعلان:\n{e}")
-        elif response.text == "🔄 خیر، نیاز به ویرایش دارم":
-            try:
-                await client.delete_messages(admin_id[0], ask_user.id)
-            except Exception:
-                pass
-            await client.send_message(
-                admin_id[0],
-                text="🔄 اعلان منتشر نشد. هر زمان آماده بودید، می‌توانید مجدداً اقدام کنید."
-            )
+        # استخراج متن خبر از caption
+        caption = callback_query.message.caption or ""
+        # حذف side_text از caption برای استخراج متن خبر اصلی
+        side_text_start = caption.find("🔺🔺🔺🔺🔺🔺🔺🔺🔺")
+        if side_text_start != -1:
+            news_text = caption[:side_text_start].strip()
         else:
-            await client.send_message(
-                admin_id[0],
-                text="❗️ پاسخ نامعتبر بود. لطفاً مجدداً اقدام کنید."
-            )
+            news_text = caption.strip()
+        
+        add_date_to_news(news_text)
+        data_folder = Path(getcwd())
+        image_to_open = data_folder / "assets" / "news_date.png"
+        await client.send_photo(CHANNEL_ID, str(image_to_open), caption=callback_query.message.caption)
+        
+        # حذف پیام‌های قبلی و ارسال پیام موفقیت
+        await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        await message_manager.send_clean_message(
+            client, chat_id,
+            f"✅ اعلان شما با موفقیت منتشر شد! {emoji.THUMBS_UP_LIGHT_SKIN_TONE}",
+            None, user_id
+        )
     except Exception as e:
-        await message.reply(f"❌ خطای غیرمنتظره:\n{e}")
+        await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        await message_manager.send_clean_message(
+            client, chat_id,
+            f"❌ خطا در انتشار اعلان:\n{e}",
+            None, user_id
+        )
 
+@Client.on_callback_query(filters.regex("^news_edit$"))
+async def news_edit_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی و ارسال پیام
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    await message_manager.send_clean_message(
+        client, chat_id,
+        "🔄 اعلان منتشر نشد. هر زمان آماده بودید، می‌توانید مجدداً اقدام کنید.",
+        None, user_id
+    )

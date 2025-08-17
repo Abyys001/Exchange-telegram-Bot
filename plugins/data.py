@@ -128,11 +128,14 @@ def send_data() -> int:
 
 async def change_price(client, message):
     """نمایش دکمه‌های تغییر قیمت خرید یا فروش"""
+    from .message_manager import get_back_button
+    
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("قیمت خرید", "buy"),
-            InlineKeyboardButton("قیمت فروش", "sell"),
-        ]
+            InlineKeyboardButton("قیمت خرید", callback_data="buy"),
+            InlineKeyboardButton("قیمت فروش", callback_data="sell"),
+        ],
+        [get_back_button("back_to_admin", "🔙 بازگشت به پنل ادمین")]
     ])
     await message.reply(
         "قیمت کدام بخش را میخواهید تغییر دهید؟",

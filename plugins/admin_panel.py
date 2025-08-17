@@ -1,17 +1,26 @@
-from pyrogram.types import KeyboardButton, ReplyKeyboardMarkup
-from pyromod import Client
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+# from ..main import app
+from pyrogram import Client, filters
 
 from .data import COMMANDS, insert_admin_stuff_to_data, ADMINS
 from .admin_news import news_handler
 from .admin_special_offer import special_offer
 from .admin_finalize import finalize_prices
 from .tether_panel import tether_main_menu
+from .message_manager import message_manager, get_home_button
 
 # ============== ADMIN panels ==============
 
-@Client.on_callback_query("back_to_main_menu")
-async def back_to_main_menu(client, message):
-    await admin_main(client, message)
+@Client.on_callback_query(filters.regex("^back_to_main_menu$"))
+async def back_to_main_menu(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    await admin_panel(client, callback_query.message, user_id, chat_id)
 
 async def admin_main(client, message):
     """
@@ -34,39 +43,82 @@ async def admin_panel(client, message, *args):
     """
     Show main admin panel with options.
     """
-    keyboard = ReplyKeyboardMarkup(
-        [
-            [KeyboardButton(COMMANDS[0])],
-            [KeyboardButton(COMMANDS[1])],
-            [KeyboardButton(COMMANDS[2])],
-            [KeyboardButton(COMMANDS[3])],
-            [KeyboardButton(COMMANDS[4])],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+    user_id = args[0] if args else None
+    chat_id = args[1] if len(args) > 1 else None
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(COMMANDS[0], callback_data="admin_change_price")],
+        [InlineKeyboardButton(COMMANDS[1], callback_data="admin_special_offer")],
+        [InlineKeyboardButton(COMMANDS[2], callback_data="admin_news")],
+        [InlineKeyboardButton(COMMANDS[3], callback_data="admin_tether")],
+        [InlineKeyboardButton(COMMANDS[4], callback_data="admin_finalize")],
+        [get_home_button()]
+    ])
 
     text = (
         "👤 به پنل مدیریت صرافی پردیس خوش آمدید.\n"
         "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
     )
-    answer = await client.ask(message.chat.id, text=text, reply_markup=keyboard)
 
-    if answer.text in COMMANDS:
-        if answer.text == COMMANDS[0]:
-            from .data import change_price
-            await change_price(client, message)
-        elif answer.text == COMMANDS[1]:
-            await special_offer(client, message, args[0], args[1])
-        elif answer.text == COMMANDS[2]:
-            await news_handler(client, message)
-        elif answer.text == COMMANDS[3]:
-            await tether_main_menu(client, message)
-            await admin_main(client, message)
-        elif answer.text == COMMANDS[4]:
-            await finalize_prices(client, message, args[0], args[1])
+    if user_id and chat_id:
+        await message_manager.send_clean_message(client, chat_id, text, keyboard, user_id)
     else:
-        await message.reply(
-            "❗ گزینه نامعتبر است.\n"
-            "لطفاً فقط از میان گزینه‌های موجود انتخاب کنید."
-        )
+        await message.reply(text=text, reply_markup=keyboard)
+
+# ============== Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^admin_change_price$"))
+async def admin_change_price_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    from .data import change_price
+    await change_price(client, callback_query.message)
+
+@Client.on_callback_query(filters.regex("^admin_special_offer$"))
+async def admin_special_offer_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    await special_offer(client, callback_query.message, user_id, chat_id)
+
+@Client.on_callback_query(filters.regex("^admin_news$"))
+async def admin_news_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    await news_handler(client, callback_query.message)
+
+@Client.on_callback_query(filters.regex("^admin_tether$"))
+async def admin_tether_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    await tether_main_menu(client, callback_query.message)
+
+@Client.on_callback_query(filters.regex("^admin_finalize$"))
+async def admin_finalize_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+
+    await finalize_prices(client, callback_query.message, user_id, chat_id)

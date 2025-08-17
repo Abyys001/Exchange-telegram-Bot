@@ -1,7 +1,8 @@
 from pathlib import Path
 from os import getcwd
-from pyrogram.types import KeyboardButton, ReplyKeyboardMarkup
-from pyrogram import emoji
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyromod import Client
+from pyrogram import emoji, filters
 import traceback
 import logging
 
@@ -10,6 +11,7 @@ from .data import (
     able_offers, price_offers, get_state, CHANNEL_ID
 )
 from .offer_pic_generator import offer_draw
+from .message_manager import message_manager
 
 import sys
 import types
@@ -34,7 +36,7 @@ OFFER_LABELS = [
     "💲 خرید ویژه تتر",
     "💳 فروش ویژه از حساب",
     "💵 فروش ویژه نقدی",
-    "�� فروش ویژه تتر",
+    "💲 فروش ویژه تتر",
 ]
 # نگاشت لیبل‌های با ایموجی به لیبل‌های اصلی بدون ایموجی (مطابق data.py)
 OFFER_LABELS_MAP = {
@@ -69,32 +71,33 @@ MAIN_TEXT = (
 )
 
 def get_offer_keyboard():
-    return ReplyKeyboardMarkup(
+    return InlineKeyboardMarkup([
         [
-            [OFFER_LABELS[0], OFFER_LABELS[1]],
-            [OFFER_LABELS[2], OFFER_LABELS[3]],
-            [OFFER_LABELS[4]],
-            [OFFER_LABELS[5]],
-            [FINALIZE_LABEL],
-            [BACK_LABEL],
+            InlineKeyboardButton(OFFER_LABELS[0], callback_data="offer_0"),
+            InlineKeyboardButton(OFFER_LABELS[1], callback_data="offer_1")
         ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+        [
+            InlineKeyboardButton(OFFER_LABELS[2], callback_data="offer_2"),
+            InlineKeyboardButton(OFFER_LABELS[3], callback_data="offer_3")
+        ],
+        [InlineKeyboardButton(OFFER_LABELS[4], callback_data="offer_4")],
+        [InlineKeyboardButton(OFFER_LABELS[5], callback_data="offer_5")],
+        [InlineKeyboardButton(FINALIZE_LABEL, callback_data="offer_finalize")],
+        [InlineKeyboardButton(BACK_LABEL, callback_data="offer_back")],
+    ])
 
 def get_cancel_keyboard():
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton(CANCEL_LABEL)]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(CANCEL_LABEL, callback_data="offer_cancel")]
+    ])
 
 def get_confirm_keyboard():
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton(CONFIRM_LABEL), KeyboardButton(DECLINE_LABEL)]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(CONFIRM_LABEL, callback_data="offer_confirm"),
+            InlineKeyboardButton(DECLINE_LABEL, callback_data="offer_decline")
+        ]
+    ])
 
 async def special_offer(client, message, user_id=None, chat_id=None):
     """
@@ -107,24 +110,89 @@ async def special_offer(client, message, user_id=None, chat_id=None):
             text="لطفاً نوع خرید یا فروش ویژه مورد نظر خود را انتخاب کنید:",
             reply_markup=keyboard
         )
-        answer = await client.listen(message.chat.id)
-        text = answer.text.strip() if answer.text else ""
-
-        if text in OFFER_LABELS:
-            await offer_handler(client, message, offer=text, user_id=user_id, chat_id=chat_id)
-        elif text == FINALIZE_LABEL:
-            await offer_finalize(client, message, user_id, chat_id)
-        elif text == BACK_LABEL:
-            await message.reply("✅ به منوی اصلی بازگشتید.")
-        else:
-            await message.reply("⚠️ لطفاً فقط از میان گزینه‌های موجود انتخاب کنید.")
-            await special_offer(client, message, user_id, chat_id)
     except Exception as e:
         logging.error(f"[special_offer] {e}\n{traceback.format_exc()}")
         await message.reply(
             f"❌ خطایی رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
             f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
         )
+
+# ============== Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^offer_0$"))  # 💳 خرید ویژه از حساب
+async def offer_0_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[0], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_1$"))  # 💵 خرید ویژه نقدی
+async def offer_1_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[1], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_2$"))  # 💲 خرید ویژه تتر
+async def offer_2_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[2], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_3$"))  # 💳 فروش ویژه از حساب
+async def offer_3_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[3], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_4$"))  # 💵 فروش ویژه نقدی
+async def offer_4_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[4], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_5$"))  # 💲 فروش ویژه تتر
+async def offer_5_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_handler(client, callback_query.message, OFFER_LABELS[5], callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_finalize$"))
+async def offer_finalize_handler(client, callback_query):
+    await callback_query.answer()
+    await offer_finalize(client, callback_query.message, callback_query.from_user.id, callback_query.message.chat.id)
+
+@Client.on_callback_query(filters.regex("^offer_back$"))
+async def offer_back_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    # بازگشت به پنل ادمین
+    from .admin_panel import admin_panel
+    await admin_panel(client, callback_query.message, user_id, chat_id)
+
+@Client.on_callback_query(filters.regex("^offer_cancel$"))
+async def offer_cancel_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    turn_all_offers_false()
+    
+    # بازگشت به پنل ادمین
+    from .admin_panel import admin_panel
+    await admin_panel(client, callback_query.message, user_id, chat_id)
+
+@Client.on_callback_query(filters.regex("^offer_confirm$"))
+async def offer_confirm_handler(client, callback_query):
+    await callback_query.answer()
+    # این هندلر در offer_finalize استفاده می‌شود
+    pass
+
+@Client.on_callback_query(filters.regex("^offer_decline$"))
+async def offer_decline_handler(client, callback_query):
+    await callback_query.answer()
+    # این هندلر در offer_finalize استفاده می‌شود
+    pass
 
 async def offer_handler(client, message, offer, user_id=None, chat_id=None):
     """
@@ -143,7 +211,14 @@ async def offer_handler(client, message, offer, user_id=None, chat_id=None):
 
         if offer_price.text == CANCEL_LABEL:
             turn_all_offers_false()
-            await message.reply("⏪ عملیات لغو شد و به منوی اصلی بازگشتید.")
+            
+            # حذف پیام‌های قبلی و بازگشت به پنل ادمین
+            if user_id and chat_id:
+                await message_manager.cleanup_user_messages(client, user_id, chat_id)
+                from .admin_panel import admin_panel
+                await admin_panel(client, message, user_id, chat_id)
+            else:
+                await message.reply("⏪ عملیات لغو شد و به منوی اصلی بازگشتید.")
             return
 
         try:
@@ -214,56 +289,88 @@ async def offer_finalize(client, message, user_id, chat_id):
             text="آیا از نهایی‌سازی قیمت‌های ویژه اطمینان دارید؟",
             reply_markup=get_confirm_keyboard()
         )
-        response = await client.listen(chat_id=admin_id[1], user_id=admin_id[0])
 
-        if not response or not hasattr(response, "text"):
-            await client.send_message(admin_id[0], text="⏪ ورودی نامعتبر بود. عملیات لغو شد.")
-            return
+        # برای Inline Keyboard، باید از callback handler استفاده کنیم
+        # این بخش نیاز به بازنویسی دارد
 
-        if response.text == CONFIRM_LABEL:
-            try:
-                # Patch: Ensure offer_pic_generator has correct datetime
-                import sys
-                import datetime as _real_datetime
-                offer_pic_mod = None
-                if ".offer_pic_generator" in sys.modules:
-                    offer_pic_mod = sys.modules[".offer_pic_generator"]
-                elif "plugins.offer_pic_generator" in sys.modules:
-                    offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
-                if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
-                    offer_pic_mod.datetime = _real_datetime
-
-                state = get_state()
-                if state is None:
-                    await client.send_message(admin_id[0], "❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.")
-                    return
-                
-                offer_draw(state)
-                image_path = Path(getcwd()) / f"./assets/offer{state}.png"
-                await client.send_photo(CHANNEL_ID, image_path, caption=MAIN_TEXT)
-                await client.delete_messages(admin_id[0], [response.id, ask_msg.id])
-                await client.send_message(
-                    admin_id[0],
-                    text=f"🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد {emoji.SPARKLES}"
-                )
-            except Exception as e:
-                logging.error(f"[offer_finalize:send_photo] {e}\n{traceback.format_exc()}")
-                await client.send_message(
-                    admin_id[0],
-                    text=f"❌ خطا در ارسال به کانال. لطفاً بعداً تلاش کنید.\n\n"
-                         f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
-                )
-        elif response.text == DECLINE_LABEL:
-            await client.delete_messages(admin_id[0], ask_msg.id)
-            await client.send_message(admin_id[0], text="⏪ تغییرات ذخیره نشد و به منوی ویژه بازگشتید.")
-        else:
-            await client.send_message(admin_id[0], text="⏪ گزینه نامعتبر بود. عملیات لغو شد.")
     except Exception as e:
         logging.error(f"[offer_finalize] {e}\n{traceback.format_exc()}")
         await message.reply(
             f"❌ خطایی در نهایی‌سازی قیمت‌ها رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
             f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
         )
+
+# ============== Finalize Callback Handlers ==============
+
+@Client.on_callback_query(filters.regex("^offer_confirm$"))
+async def offer_finalize_confirm_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    try:
+        # Patch: Ensure offer_pic_generator has correct datetime
+        import sys
+        import datetime as _real_datetime
+        offer_pic_mod = None
+        if ".offer_pic_generator" in sys.modules:
+            offer_pic_mod = sys.modules[".offer_pic_generator"]
+        elif "plugins.offer_pic_generator" in sys.modules:
+            offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
+        if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
+            offer_pic_mod.datetime = _real_datetime
+
+        state = get_state()
+        if state is None:
+            await message_manager.send_clean_message(
+                client, chat_id, 
+                "❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.",
+                None, user_id
+            )
+            return
+        
+        offer_draw(state)
+        image_path = Path(getcwd()) / f"./assets/offer{state}.png"
+        await client.send_photo(CHANNEL_ID, image_path, caption=MAIN_TEXT)
+        
+        # ارسال پیام موفقیت و بازگشت به پنل ادمین
+        success_message = f"🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد {emoji.SPARKLES}"
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
+        ])
+        
+        await message_manager.send_clean_message(
+            client, chat_id, success_message, keyboard, user_id
+        )
+        
+    except Exception as e:
+        logging.error(f"[offer_finalize:send_photo] {e}\n{traceback.format_exc()}")
+        error_message = f"❌ خطا در ارسال به کانال. لطفاً بعداً تلاش کنید.\n\n🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
+        ])
+        
+        await message_manager.send_clean_message(
+            client, chat_id, error_message, keyboard, user_id
+        )
+
+@Client.on_callback_query(filters.regex("^offer_decline$"))
+async def offer_finalize_decline_handler(client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    chat_id = callback_query.message.chat.id
+    
+    # حذف پیام‌های قبلی
+    await message_manager.cleanup_user_messages(client, user_id, chat_id)
+    
+    # بازگشت به پنل ادمین
+    from .admin_panel import admin_panel
+    await admin_panel(client, callback_query.message, user_id, chat_id)
 
 # ================== TEST MODE ==================
 if __name__ == "__main__":
@@ -286,21 +393,16 @@ if __name__ == "__main__":
 
     # تابع تستی برای تولید همه بنرها
     def test_generate_all_banners():
-        print("در حال تولید بنرهای تستی با قیمت 128000 ...")
         for idx, k in enumerate(offer_keys, 1):
             try:
                 # فرض بر این است که state همان ایندکس است (یا هر مقدار مورد نیاز offer_draw)
                 offer_draw(idx)
                 image_path = Path(getcwd()) / f"./assets/offer{idx}.png"
                 if image_path.exists():
-                    print(f"✅ بنر {k} ساخته شد: {image_path}")
+                    pass
                 else:
-                    print(f"❌ بنر {k} ساخته نشد!")
+                    pass
             except Exception as e:
-                print(f"❌ خطا در ساخت بنر {k}: {e}")
-                import traceback
-                print(traceback.format_exc())
+                    pass
             time.sleep(0.5)
-        print("تمام بنرهای تستی ساخته شدند.")
-
     test_generate_all_banners()
