@@ -316,3 +316,4 @@ async def tether_final_decline_handler(client, callback_query):
     except Exception as e:
         print(f"[tether_final_decline_handler] Error returning to admin panel: {e}")
         await client.send_message(chat_id, text=f"⛔️ خطا در بازگشت به پنل ادمین: {str(e)}")
+

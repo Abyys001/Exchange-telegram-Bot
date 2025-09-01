@@ -77,10 +77,10 @@ def get_offer_keyboard():
             InlineKeyboardButton(OFFER_LABELS[1], callback_data="offer_1")
         ],
         [
-            InlineKeyboardButton(OFFER_LABELS[2], callback_data="offer_2"),
+            InlineKeyboardButton(OFFER_LABELS[4], callback_data="offer_4"),
             InlineKeyboardButton(OFFER_LABELS[3], callback_data="offer_3")
         ],
-        [InlineKeyboardButton(OFFER_LABELS[4], callback_data="offer_4")],
+        [InlineKeyboardButton(OFFER_LABELS[2], callback_data="offer_2")],
         [InlineKeyboardButton(OFFER_LABELS[5], callback_data="offer_5")],
         [InlineKeyboardButton(FINALIZE_LABEL, callback_data="offer_finalize")],
         [InlineKeyboardButton(BACK_LABEL, callback_data="offer_back")],
