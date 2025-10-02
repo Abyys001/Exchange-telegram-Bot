@@ -43,12 +43,12 @@
 # ])
 
 # TETHER_BUTTONS = [
-#     ["🟢 خرید تتر ریال", "🔴 فروش تتر ریال"],
+#     ["🟢 خرید تتر تومن", "🔴 فروش تتر تومن"],
 #     ["🟢 خرید تتر پوند", "🔴 فروش تتر پوند"]
 # ]
 # TETHER_BUTTONS_TRANSLATE = {
-#     "🟢 خرید تتر ریال": "tether_buy_irr",
-#     "🔴 فروش تتر ریال": "tether_sell_irr",
+#     "🟢 خرید تتر تومن": "tether_buy_irr",
+#     "🔴 فروش تتر تومن": "tether_sell_irr",
 #     "🟢 خرید تتر پوند": "tether_buy_gbp",
 #     "🔴 فروش تتر پوند": "tether_sell_gbp"
 # }
@@ -101,7 +101,7 @@
 
 # # ============== Callback Handlers ==============
 
-# @Client.on_callback_query(filters.regex("^tether_price_0_0$"))  # 🟢 خرید تتر ریال
+# @Client.on_callback_query(filters.regex("^tether_price_0_0$"))  # 🟢 خرید تتر تومن
 # async def tether_buy_irr_handler(client, callback_query):
 #     await callback_query.answer()
 #     user_id = callback_query.from_user.id
@@ -112,7 +112,7 @@
     
 #     await ask_price_value(client, callback_query.message, tether_form="tether_buy_irr")
 
-# @Client.on_callback_query(filters.regex("^tether_price_0_1$"))  # 🔴 فروش تتر ریال
+# @Client.on_callback_query(filters.regex("^tether_price_0_1$"))  # 🔴 فروش تتر تومن
 # async def tether_sell_irr_handler(client, callback_query):
 #     await callback_query.answer()
 #     user_id = callback_query.from_user.id

@@ -1,41 +1,30 @@
-#!/usr/bin/env python3
-"""
-Test file for Pardis Bot
-"""
+import requests
+import json
 
-import asyncio
-from pyromod import Client
-from plugins.secret_keys import PARDIS_SECRET_KEY
+URL = "https://sarafipardis.co.uk/wp-json/pardis/v1/rates"
+API_KEY = "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
 
-# Bot configuration
-API_ID = 25659111
-API_HASH = "2f4d5e01c109e278ac7d29e907647db1"
-BOT_TOKEN = PARDIS_SECRET_KEY
-
-async def test_bot():
-    """Test the bot functionality"""
-    print("Starting bot test...")
-    
-    app = Client(
-        "test_app",
-        API_ID,
-        API_HASH,
-        bot_token=BOT_TOKEN,
-    )
-    
+def send_request(currency, rate):
+    payload = {"currency": currency, "rate": rate, "api_key": API_KEY}
+    headers = {"Content-Type": "application/json"}
     try:
-        await app.start()
-        print("✅ Bot started successfully!")
-        print(f"Bot username: @{(await app.get_me()).username}")
-        
-        # Keep the bot running for a few seconds
-        await asyncio.sleep(5)
-        
-    except Exception as e:
-        print(f"❌ Error starting bot: {e}")
-    finally:
-        await app.stop()
-        print("Bot stopped.")
+        response = requests.post(URL, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        print(f"✅ {currency} sent successfully:")
+        return result
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error sending {currency}:", e)
+    except json.JSONDecodeError:
+        print(f"❌ JSON decode error for {currency}")
 
-if __name__ == "__main__":
-    asyncio.run(test_bot()) 
+# توابع مخصوص هر ارز
+def send_gbp_buy(rate): return send_request("GBP_BUY", rate)
+def send_gbp_sell(rate): return send_request("GBP_SELL", rate)
+def send_usdt_buy(rate): return send_request("USDT_BUY", rate)
+def send_usdt_sell(rate): return send_request("USDT_SELL", rate)
+
+send_gbp_buy(134000)
+send_gbp_sell(143000)
+send_usdt_buy(99000)
+send_usdt_sell(107000)

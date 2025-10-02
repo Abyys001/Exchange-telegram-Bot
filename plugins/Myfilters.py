@@ -22,7 +22,8 @@ async def check_member(_, client, message):
         )
         await client.send_message(user_id, text, disable_web_page_preview=True)
     except Exception as e:
-        print(f"[check_member] Error: {e}")
+        import logging
+        logging.error(f"[check_member] Error: {e}")
     return False
 
 async def not_admin(_, client, message):

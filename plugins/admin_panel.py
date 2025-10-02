@@ -5,7 +5,8 @@ from pyrogram import Client, filters
 from .data import COMMANDS, insert_admin_stuff_to_data, ADMINS
 from .admin_news import news_handler
 from .admin_special_offer import special_offer
-from .admin_finalize import finalize_prices
+from .admin_finalize import pound_offer_finilizer as finalize_prices
+
 from .tether_panel import tether_main_menu
 from .message_manager import message_manager, get_home_button
 
@@ -121,4 +122,4 @@ async def admin_finalize_handler(client, callback_query):
     # حذف پیام‌های قبلی
     await message_manager.cleanup_user_messages(client, user_id, chat_id)
 
-    await finalize_prices(client, callback_query.message, user_id, chat_id)
+    await finalize_prices(client, callback_query.message)

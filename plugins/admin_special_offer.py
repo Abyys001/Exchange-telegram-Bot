@@ -5,6 +5,7 @@ from pyromod import Client
 from pyrogram import emoji, filters
 import traceback
 import logging
+import asyncio
 
 from .data import (
     admin_id, turn_all_offers_false, toman_form,
@@ -38,7 +39,7 @@ OFFER_LABELS = [
     "💵 فروش ویژه نقدی",
     "💲 فروش ویژه تتر",
 ]
-# نگاشت لیبل‌های با ایموجی به لیبل‌های اصلی بدون ایموجی (مطابق data.py)
+
 OFFER_LABELS_MAP = {
     "💵 خرید ویژه نقدی": "خرید ویژه نقدی",
     "💳 خرید ویژه از حساب": "خرید ویژه از حساب",
@@ -47,6 +48,7 @@ OFFER_LABELS_MAP = {
     "💳 فروش ویژه از حساب": "فروش ویژه از حساب",
     "💲 فروش ویژه تتر": "فروش ویژه تتر",
 }
+
 FINALIZE_LABEL = "✅ نهایی‌سازی خرید/فروش ویژه"
 BACK_LABEL = "🔙 بازگشت به منوی اصلی"
 CANCEL_LABEL = "❌ انصراف"
@@ -64,11 +66,14 @@ MAIN_TEXT = (
     "<u>Office A\n"
     "708A High Road\n"
     "North Finchley\n"
-    "N129QL<u/>\n\n"
+    "N129QL</u>\n\n"
     "🔺🔺🔺🔺🔺🔺🔺🔺🔺\n\n"
     "مبالغ زیر ۱۰۰۰ پوند شامل ۱۰ پوند کارمزد می‌باشد\n\n"
     "⛔ لطفا بدون هماهنگی هیچ مبلغی به هیچ حسابی واریز نکنید ⛔"
 )
+
+# متغیرهای مدیریت state
+user_states = {}
 
 def get_offer_keyboard():
     return InlineKeyboardMarkup([
@@ -104,17 +109,24 @@ async def special_offer(client, message, user_id=None, chat_id=None):
     منوی خرید/فروش ویژه ادمین
     """
     try:
+        # حذف پیام‌های قبلی
+        if user_id and chat_id:
+            await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        
         keyboard = get_offer_keyboard()
-        await client.send_message(
+        msg = await client.send_message(
             message.chat.id,
-            text="لطفاً نوع خرید یا فروش ویژه مورد نظر خود را انتخاب کنید:",
+            text="👋 به منوی خرید/فروش ویژه خوش آمدید!\n\nلطفاً نوع خرید یا فروش ویژه مورد نظر خود را انتخاب کنید:",
             reply_markup=keyboard
         )
+        
+        # ذخیره پیام برای مدیریت بعدی
+ 
     except Exception as e:
         logging.error(f"[special_offer] {e}\n{traceback.format_exc()}")
         await message.reply(
-            f"❌ خطایی رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
-            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+            f"❌ خطایی رخ داد. لطفاً مجدداً تلاش کنید.\n\n"
+            f"🔎 جزییات خطا: {str(e)}"
         )
 
 # ============== Callback Handlers ==============
@@ -182,185 +194,183 @@ async def offer_cancel_handler(client, callback_query):
     from .admin_panel import admin_panel
     await admin_panel(client, callback_query.message, user_id, chat_id)
 
-@Client.on_callback_query(filters.regex("^offer_confirm$"))
-async def offer_confirm_handler(client, callback_query):
-    await callback_query.answer()
-    # این هندلر در offer_finalize استفاده می‌شود
-    pass
-
-@Client.on_callback_query(filters.regex("^offer_decline$"))
-async def offer_decline_handler(client, callback_query):
-    await callback_query.answer()
-    # این هندلر در offer_finalize استفاده می‌شود
-    pass
-
 async def offer_handler(client, message, offer, user_id=None, chat_id=None):
     """
     ثبت قیمت برای یک پیشنهاد ویژه
     """
     try:
-        await client.send_message(
+        # حذف پیام‌های قبلی
+        if user_id and chat_id:
+            await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        
+        msg = await client.send_message(
             message.chat.id,
-            text=f"💰 لطفاً قیمت {offer} را وارد کنید:",
+            text=f"💰 لطفاً قیمت {offer} را به عدد وارد کنید:",
             reply_markup=get_cancel_keyboard()
         )
+        
+        
+        # ذخیره state کاربر
+        user_states[user_id] = {"waiting_for_price": offer}
+        
+        # انتظار برای دریافت قیمت
         offer_price = await client.listen(message.chat.id)
+        
         if not offer_price or not hasattr(offer_price, "text"):
-            await message.reply("❗️ ورودی نامعتبر است. لطفاً مجدداً تلاش کنید.")
-            return await offer_handler(client, message, offer, user_id=user_id, chat_id=chat_id)
+            await message.reply("⏰ زمان دریافت قیمت به پایان رسید. لطفاً مجدداً تلاش کنید.")
+            return await special_offer(client, message, user_id, chat_id)
 
         if offer_price.text == CANCEL_LABEL:
             turn_all_offers_false()
-            
-            # حذف پیام‌های قبلی و بازگشت به پنل ادمین
-            if user_id and chat_id:
-                await message_manager.cleanup_user_messages(client, user_id, chat_id)
-                from .admin_panel import admin_panel
-                await admin_panel(client, message, user_id, chat_id)
-            else:
-                await message.reply("⏪ عملیات لغو شد و به منوی اصلی بازگشتید.")
-            return
+            await message.reply("⏪ عملیات لغو شد.")
+            return await special_offer(client, message, user_id, chat_id)
 
         try:
-            price = int(offer_price.text.replace(",", "").replace(" ", ""))
+            price = int(offer_price.text.replace(",", "").replace(" ", "").replace("تومان", "").strip())
             if price <= 0:
-                raise ValueError
+                raise ValueError("قیمت باید بزرگتر از صفر باشد")
         except Exception as e:
-            await message.reply(
-                f"❗️ لطفاً یک عدد معتبر وارد کنید.\n\n"
-                f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+            error_msg = await client.send_message(
+                message.chat.id,
+                text=f"❗️ لطفاً یک عدد معتبر وارد کنید. مثال: 58000 یا 58,000"
             )
-            return await offer_handler(client, message, offer, user_id=user_id, chat_id=chat_id)
+            await asyncio.sleep(2)
+            return await offer_handler(client, message, offer, user_id, chat_id)
 
+        # ثبت قیمت
         turn_all_offers_false()
-        # استفاده از نگاشت برای فعال‌سازی کلید صحیح
         offer_key = OFFER_LABELS_MAP.get(offer, offer)
         able_offers[offer_key] = True
         price_offers[offer_key] = price
-        await message.reply(f"✅ قیمت {offer} با موفقیت به {toman_form(price)} تغییر یافت.")
-        await special_offer(
-            client,
-            message,
-            user_id or (getattr(message, "from_user", None) and message.from_user.id),
-            chat_id or (getattr(message, "chat", None) and message.chat.id)
+        
+        success_msg = await client.send_message(
+            message.chat.id,
+            text=f"✅ قیمت {offer} با موفقیت به {toman_form(price)} تغییر یافت."
         )
+        
+        await asyncio.sleep(1)
+        await special_offer(client, message, user_id, chat_id)
+        
+    except asyncio.TimeoutError:
+        await message.reply("⏰ زمان دریافت قیمت به پایان رسید. لطفاً مجدداً تلاش کنید.")
+        await special_offer(client, message, user_id, chat_id)
     except Exception as e:
         logging.error(f"[offer_handler] {e}\n{traceback.format_exc()}")
-        await message.reply(
-            f"❌ خطایی در ثبت قیمت رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
-            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
-        )
+        await message.reply(f"❌ خطایی در ثبت قیمت رخ داد: {str(e)}")
 
 async def offer_finalize(client, message, user_id, chat_id):
     """
     نهایی کردن قیمت‌های ویژه و ارسال به کانال
     """
     try:
+        # حذف پیام‌های قبلی
+        await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        
+        # بررسی آیا حداقل یک آفر فعال وجود دارد
+        active_offers = any(able_offers.values())
+        if not active_offers:
+            error_msg = await client.send_message(
+                chat_id,
+                text="❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا حداقل یک آفر ویژه را تنظیم کنید."
+            )
+            await asyncio.sleep(2)
+            return await special_offer(client, message, user_id, chat_id)
+        
+        # تولید عکس
         try:
-            # Patch: Ensure offer_pic_generator has correct datetime
-            import sys
-            import datetime as _real_datetime
-            offer_pic_mod = None
-            if ".offer_pic_generator" in sys.modules:
-                offer_pic_mod = sys.modules[".offer_pic_generator"]
-            elif "plugins.offer_pic_generator" in sys.modules:
-                offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
-            if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
-                offer_pic_mod.datetime = _real_datetime
-
             state = get_state()
             if state is None:
-                await message.reply("❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.")
-                return
+                state = 1  # حالت پیش‌فرض
             
             offer_draw(state)
             image_path = Path(getcwd()) / f"./assets/offer{state}.png"
-            await message.reply_photo(image_path, caption=MAIN_TEXT)
+            
+            if not image_path.exists():
+                raise FileNotFoundError(f"عکس تولید شده یافت نشد: {image_path}")
+                
+            # نمایش پیش‌نمایش به ادمین
+            preview_msg = await client.send_photo(
+                chat_id,
+                photo=image_path,
+                caption="📋 پیش‌نمایش قیمت‌های ویژه:\n\n" + MAIN_TEXT
+            )
+            
         except Exception as e:
             logging.error(f"[offer_finalize:draw] {e}\n{traceback.format_exc()}")
-            await message.reply(
-                f"⏳ لطفاً شکیبا باشید، در حال آماده‌سازی قیمت‌ها هستیم...\n\n"
-                f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
+            error_msg = await client.send_message(
+                chat_id,
+                text=f"❌ خطا در تولید عکس: {str(e)}\n\nلطفاً از پشتیبانی کمک بگیرید."
             )
             return
-
-        ask_msg = await client.send_message(
-            admin_id[0],
-            text="آیا از نهایی‌سازی قیمت‌های ویژه اطمینان دارید؟",
+        
+        # درخواست تأیید نهایی‌سازی
+        confirm_msg = await client.send_message(
+            chat_id,
+            text="❓ آیا از نهایی‌سازی قیمت‌های ویژه و ارسال به کانال اطمینان دارید؟",
             reply_markup=get_confirm_keyboard()
         )
-
-        # برای Inline Keyboard، باید از callback handler استفاده کنیم
-        # این بخش نیاز به بازنویسی دارد
-
+        
+        # ذخیره state برای هندلرهای تأیید
+        user_states[user_id] = {"finalizing": True, "image_path": image_path}
+        
     except Exception as e:
         logging.error(f"[offer_finalize] {e}\n{traceback.format_exc()}")
-        await message.reply(
-            f"❌ خطایی در نهایی‌سازی قیمت‌ها رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
-            f"🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
-        )
+        await message.reply(f"❌ خطایی در نهایی‌سازی رخ داد: {str(e)}")
 
 # ============== Finalize Callback Handlers ==============
 
 @Client.on_callback_query(filters.regex("^offer_confirm$"))
-async def offer_finalize_confirm_handler(client, callback_query):
+async def offer_confirm_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
     chat_id = callback_query.message.chat.id
-    
-    # حذف پیام‌های قبلی
-    await message_manager.cleanup_user_messages(client, user_id, chat_id)
     
     try:
-        # Patch: Ensure offer_pic_generator has correct datetime
-        import sys
-        import datetime as _real_datetime
-        offer_pic_mod = None
-        if ".offer_pic_generator" in sys.modules:
-            offer_pic_mod = sys.modules[".offer_pic_generator"]
-        elif "plugins.offer_pic_generator" in sys.modules:
-            offer_pic_mod = sys.modules["plugins.offer_pic_generator"]
-        if offer_pic_mod and not hasattr(offer_pic_mod, "datetime"):
-            offer_pic_mod.datetime = _real_datetime
-
-        state = get_state()
-        if state is None:
-            await message_manager.send_clean_message(
-                client, chat_id, 
-                "❌ هیچ آفر فعالی موجود نیست. لطفاً ابتدا یک آفر ویژه فعال کنید.",
-                None, user_id
+        # حذف پیام‌های قبلی
+        await message_manager.cleanup_user_messages(client, user_id, chat_id)
+        
+        # بررسی state کاربر
+        user_state = user_states.get(user_id, {})
+        image_path = user_state.get("image_path")
+        
+        if not image_path or not Path(image_path).exists():
+            error_msg = await client.send_message(
+                chat_id,
+                text="❌ عکس قیمت‌ها یافت نشد. لطفاً مجدداً تلاش کنید."
             )
-            return
+            return await special_offer(client, callback_query.message, user_id, chat_id)
         
-        offer_draw(state)
-        image_path = Path(getcwd()) / f"./assets/offer{state}.png"
-        await client.send_photo(CHANNEL_ID, image_path, caption=MAIN_TEXT)
+        # ارسال به کانال
+        try:
+            await client.send_photo(
+                CHANNEL_ID,
+                photo=image_path,
+                caption=MAIN_TEXT
+            )
+            
+            success_msg = await client.send_message(
+                chat_id,
+                text="🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد! " + emoji.SPARKLES
+            )
+            
+        except Exception as e:
+            logging.error(f"[offer_confirm:send_to_channel] {e}\n{traceback.format_exc()}")
+            error_msg = await client.send_message(
+                chat_id,
+                text=f"❌ خطا در ارسال به کانال: {str(e)}"
+            )
         
-        # ارسال پیام موفقیت و بازگشت به پنل ادمین
-        success_message = f"🎉 قیمت‌های ویژه با موفقیت نهایی و به کانال ارسال شد {emoji.SPARKLES}"
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
-        ])
-        
-        await message_manager.send_clean_message(
-            client, chat_id, success_message, keyboard, user_id
-        )
+        # بازگشت به منوی اصلی بعد از 3 ثانیه
+        await asyncio.sleep(3)
+        from .admin_panel import admin_panel
+        await admin_panel(client, callback_query.message, user_id, chat_id)
         
     except Exception as e:
-        logging.error(f"[offer_finalize:send_photo] {e}\n{traceback.format_exc()}")
-        error_message = f"❌ خطا در ارسال به کانال. لطفاً بعداً تلاش کنید.\n\n🔎 جزییات خطا:\n<code>{e}</code>\n<code>{traceback.format_exc()}</code>"
-        
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
-        ])
-        
-        await message_manager.send_clean_message(
-            client, chat_id, error_message, keyboard, user_id
-        )
+        logging.error(f"[offer_confirm_handler] {e}\n{traceback.format_exc()}")
+        await callback_query.message.reply(f"❌ خطایی رخ داد: {str(e)}")
 
 @Client.on_callback_query(filters.regex("^offer_decline$"))
-async def offer_finalize_decline_handler(client, callback_query):
+async def offer_decline_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
     chat_id = callback_query.message.chat.id
@@ -368,41 +378,25 @@ async def offer_finalize_decline_handler(client, callback_query):
     # حذف پیام‌های قبلی
     await message_manager.cleanup_user_messages(client, user_id, chat_id)
     
-    # بازگشت به پنل ادمین
-    from .admin_panel import admin_panel
-    await admin_panel(client, callback_query.message, user_id, chat_id)
+    msg = await client.send_message(
+        chat_id,
+        text="🔄 به منوی خرید/فروش ویژه بازگشتید."
+    )
 
-# ================== TEST MODE ==================
-if __name__ == "__main__":
-    # حالت تستی: وقتی این فایل مستقیماً اجرا شود، همه قیمت‌ها را روی 128000 می‌گذارد و بنرها را تولید می‌کند
-    import time
+    
+    await asyncio.sleep(1)
+    await special_offer(client, callback_query.message, user_id, chat_id)
 
-    # لیست کلیدهای آفر (بدون ایموجی)
-    offer_keys = [
-        "خرید ویژه نقدی",
-        "خرید ویژه از حساب",
-        "خرید ویژه تتر",
-        "فروش ویژه نقدی",
-        "فروش ویژه از حساب",
-        "فروش ویژه تتر",
-    ]
-    # همه آفرها فعال و قیمت تستی
-    for k in offer_keys:
-        able_offers[k] = True
-        price_offers[k] = 128000
+# پاک کردن stateهای قدیمی
+async def cleanup_old_states():
+    while True:
+        await asyncio.sleep(30)  # هر 5 دقیقه
+        current_time = asyncio.get_event_loop().time()
+        for user_id in list(user_states.keys()):
+            # اگر state بیش از 10 دقیقه قدیمی باشد، پاک شود
+            if user_states[user_id].get("timestamp", 0) + 600 < current_time:
+                del user_states[user_id]
 
-    # تابع تستی برای تولید همه بنرها
-    def test_generate_all_banners():
-        for idx, k in enumerate(offer_keys, 1):
-            try:
-                # فرض بر این است که state همان ایندکس است (یا هر مقدار مورد نیاز offer_draw)
-                offer_draw(idx)
-                image_path = Path(getcwd()) / f"./assets/offer{idx}.png"
-                if image_path.exists():
-                    pass
-                else:
-                    pass
-            except Exception as e:
-                    pass
-            time.sleep(0.5)
-    test_generate_all_banners()
+# اجرای تمیزکننده stateها
+async def start_cleanup_task():
+    asyncio.create_task(cleanup_old_states())

@@ -7,9 +7,16 @@ import json
 import requests
 import random
 import jdatetime
-
 from pyrogram import emoji
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import requests
+import json
+
+URL = "https://sarafipardis.co.uk/wp-json/pardis/v1/rates"
+API_KEY = "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+
+
+
 
 # ===================== Constants =====================
 
@@ -47,7 +54,7 @@ offer_labels = [
     "خرید ویژه نقدی",
     "خرید ویژه از حساب",
     "خرید ویژه تتر",
-    "فروش ویژه نقدی",
+    "فروش ویژه نقدی", 
     "فروش ویژه از حساب",
     "فروش ویژه تتر",
 ]
@@ -65,6 +72,13 @@ weekdays = {
     "Friday": "جمعه",
 }
 
+pound_price = {
+    "pound_buy_irr": 0,
+    "pound_sell_irr": 0,
+    "pound_buy_gbp": 0,
+    "pound_sell_gbp": 0,
+}
+
 tether_price = {
     "tether_buy_irr": 0,
     "tether_sell_irr": 0,
@@ -76,6 +90,29 @@ tether_price = {
 admin_id = []
 
 # ===================== Functions =====================
+
+
+
+def send_request(currency, rate):
+    payload = {"currency": currency, "rate": rate, "api_key": API_KEY}
+    headers = {"Content-Type": "application/json"}
+    try:
+        response = requests.post(URL, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        return result
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error sending {currency}:", e)
+    except json.JSONDecodeError:
+        print(f"❌ JSON decode error for {currency}")
+
+# توابع مخصوص هر ارز
+def send_gbp_buy(rate): return send_request("GBP_BUY", rate)
+def send_gbp_sell(rate): return send_request("GBP_SELL", rate)
+def send_usdt_buy(rate): return send_request("USDT_BUY", rate)
+def send_usdt_sell(rate): return send_request("USDT_SELL", rate)
+
+
 
 def get_farsi_date():
     today = jdatetime.date.today()
@@ -179,5 +216,22 @@ def get_tether_price(is_buy=True):
         return float(tether_price.get("tether_buy_irr", 0))
     else:
         return float(tether_price.get("tether_sell_irr", 0))
+
+def safe_int(value):
+    """
+    تبدیل ایمن رشته یا عدد به int
+    - حذف کاما
+    - اگر None یا '' باشد، برمی‌گرداند 0
+    """
+    if not value:
+        return 0
+    if isinstance(value, int):
+        return value
+    # حذف کاما و فاصله
+    value = str(value).replace(",", "").strip()
+    try:
+        return int(value)
+    except ValueError:
+        return 0
 
 ##############################################################################

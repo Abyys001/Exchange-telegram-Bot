@@ -357,4 +357,5 @@ async def handle_glass_messages(client, message):
             return
             
         await handle_glass_conversion(client, message, user_input)
-        await show_glass_panel(client, message)
+        # حذف این خط که باعث infinite loop می‌شود
+        # await show_glass_panel(client, message)

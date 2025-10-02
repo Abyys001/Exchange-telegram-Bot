@@ -7,8 +7,12 @@ from pyrogram.types import (
 from pyrogram import filters
 from pyromod import Client
 from .offer_pic_generator import create_image_for_tether_offer
-from .data import toman_form, tether_price, admin_id, CHANNEL_ID
+from .data import send_usdt_buy, toman_form, tether_price, admin_id, CHANNEL_ID, send_usdt_sell, safe_int
 from .message_manager import message_manager, get_back_button
+import requests  # اضافه کردن imports لازم
+import asyncio
+import aiohttp
+import logging
 
 STOP_KEY = "↩️ بازگشت"
 
@@ -43,12 +47,13 @@ FINAL_KEYBOARD = InlineKeyboardMarkup([
 ])
 
 TETHER_BUTTONS = [
-    ["🟢 خرید تتر ریال", "🔴 فروش تتر ریال"],
-    ["🟢 خرید تتر پوند", "🔴 فروش تتر پوند"]
+    ["🔴 فروش تتر تومن", "🟢 خرید تتر تومن"],
+    ["🔴 فروش تتر پوند", "🟢 خرید تتر پوند"]
 ]
+
 TETHER_BUTTONS_TRANSLATE = {
-    "🟢 خرید تتر ریال": "tether_buy_irr",
-    "🔴 فروش تتر ریال": "tether_sell_irr",
+    "🟢 خرید تتر تومن": "tether_buy_irr",
+    "🔴 فروش تتر تومن": "tether_sell_irr",
     "🟢 خرید تتر پوند": "tether_buy_gbp",
     "🔴 فروش تتر پوند": "tether_sell_gbp"
 }
@@ -64,6 +69,9 @@ FINAL_CONFIRM_ACTIONS = [
     "❌ خیر"
 ]
 
+# کلید API برای به‌روزرسانی قیمت‌ها
+API_KEY = "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+API_URL = "https://pardis.cybercina.co.uk/wp-json/pardis/v1/rates"
 def get_inline_keyboard(buttons, callback_prefix=""):
     """
     ساخت کیبورد اینلاین با دکمه‌های داده شده
@@ -76,6 +84,61 @@ def get_inline_keyboard(buttons, callback_prefix=""):
             row_buttons.append(InlineKeyboardButton(text, callback_data=callback_data))
         keyboard_buttons.append(row_buttons)
     return InlineKeyboardMarkup(keyboard_buttons)
+
+async def update_currency_rate(currency_type, rate_value):
+    """
+    تابع برای به‌روزرسانی قیمت از طریق API
+    """
+    try:
+        # تبدیل قیمت از فرمت تومان به عدد
+        if isinstance(rate_value, str):
+            # حذف کاما و تبدیل به عدد
+            clean_rate = rate_value.replace(',', '').replace('تومان', '').strip()
+            rate_num = int(clean_rate)
+        else:
+            rate_num = int(rate_value)
+        
+        data = {
+            "currency": currency_type,
+            "rate": rate_num,
+            "api_key": API_KEY
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(API_URL, json=data) as response:
+                result = await response.json()
+                return result.get('success', False), result
+                
+    except Exception as e:
+        logging.error(f"Error updating {currency_type}: {e}")
+        return False, str(e)
+
+async def update_all_rates():
+    """
+    به‌روزرسانی همه قیمت‌ها در API
+    """
+    results = {}
+    
+    # مپ کردن قیمت‌های داخلی به currencyهای API
+    # با توجه به تغییر API، فقط دو نوع ارز داریم: GBP و USDT
+    # ما از قیمت خرید برای به‌روزرسانی استفاده می‌کنیم
+    rate_mapping = {
+        "tether_buy_irr": "USDT",  # قیمت خرید تتر
+        "tether_buy_gbp": "GBP"    # قیمت خرید پوند
+    }
+    
+    for internal_key, api_currency in rate_mapping.items():
+        if internal_key in tether_price:
+            success, result = await update_currency_rate(api_currency, tether_price[internal_key])
+            results[api_currency] = {
+                "success": success,
+                "result": result,
+                "rate": tether_price[internal_key]
+            }
+            # تاخیر کوچک بین درخواست‌ها
+            await asyncio.sleep(0.5)
+    
+    return results
 
 async def tether_price_menu(client, message):
     """
@@ -101,7 +164,7 @@ async def tether_price_menu(client, message):
 
 # ============== Callback Handlers ==============
 
-@Client.on_callback_query(filters.regex("^tether_price_0_0$"))  # 🟢 خرید تتر ریال
+@Client.on_callback_query(filters.regex("^tether_price_0_1$"))  # 🟢 خرید تتر تومن
 async def tether_buy_irr_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
@@ -112,7 +175,7 @@ async def tether_buy_irr_handler(client, callback_query):
     
     await ask_price_value(client, callback_query.message, tether_form="tether_buy_irr")
 
-@Client.on_callback_query(filters.regex("^tether_price_0_1$"))  # 🔴 فروش تتر ریال
+@Client.on_callback_query(filters.regex("^tether_price_0_0$"))  # 🔴 فروش تتر تومن
 async def tether_sell_irr_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
@@ -123,7 +186,7 @@ async def tether_sell_irr_handler(client, callback_query):
     
     await ask_price_value(client, callback_query.message, tether_form="tether_sell_irr")
 
-@Client.on_callback_query(filters.regex("^tether_price_1_0$"))  # 🟢 خرید تتر پوند
+@Client.on_callback_query(filters.regex("^tether_price_1_1$"))  # 🟢 خرید تتر پوند
 async def tether_buy_gbp_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
@@ -134,7 +197,7 @@ async def tether_buy_gbp_handler(client, callback_query):
     
     await ask_price_value(client, callback_query.message, tether_form="tether_buy_gbp")
 
-@Client.on_callback_query(filters.regex("^tether_price_1_1$"))  # 🔴 فروش تتر پوند
+@Client.on_callback_query(filters.regex("^tether_price_1_0$"))  # 🔴 فروش تتر پوند
 async def tether_sell_gbp_handler(client, callback_query):
     await callback_query.answer()
     user_id = callback_query.from_user.id
@@ -252,13 +315,16 @@ async def tether_final(client, message):
         image_path = Path(getcwd()) / create_image_for_tether_offer()
         await message.reply_photo(image_path, caption=FINAL_MESSAGE, reply_markup=FINAL_KEYBOARD)
     except Exception as e:
-        print(f"[tether_final] Error sending photo: {e}")
+        logging.error(f"[tether_final] Error sending photo: {e}")
         await message.reply("⛔️ خطا در ارسال عکس و پیام نهایی.")
         return
 
     keyboard = get_inline_keyboard([FINAL_CONFIRM_ACTIONS], "tether_final")
     await message.reply(
         "آیا از نهایی‌سازی و ارسال قیمت‌ها به کانال اطمینان دارید؟\n\n"
+        "⚠️ توجه: با تایید، قیمت‌های زیر در وب‌سایت به‌روزرسانی خواهند شد:\n"
+        f"• خرید تتر : {tether_price.get('tether_buy_irr', 'تعیین نشده')}\n"
+        f"• فروش تتر: {tether_price.get('tether_sell_irr', 'تعیین نشده')}\n\n"
         "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
         reply_markup=keyboard
     )
@@ -278,19 +344,51 @@ async def tether_final_confirm_handler(client, callback_query):
         client, chat_id, "⏳ در حال نهایی‌سازی و ارسال به کانال...", None, user_id
     )
     
+    # ابتدا همه قیمت‌ها را در API به‌روزرسانی می‌کنیم
+    update_results = await update_all_rates()
+    
+    # بررسی نتایج به‌روزرسانی
+    failed_updates = []
+    for currency, result in update_results.items():
+        if not result["success"]:
+            failed_updates.append(f"{currency}: {result.get('result', 'خطا')}")
+    
+    # ارسال عکس به کانال
     try:
+        # تبدیل ایمن با safe_int
+        buy_price = safe_int(tether_price.get("tether_buy_irr"))
+        sell_price = safe_int(tether_price.get("tether_sell_irr"))
+
+        if buy_price != 0:
+            send_usdt_buy(buy_price)
+
+        if sell_price != 0:
+            send_usdt_sell(sell_price)
+
+            
         image_path = Path(getcwd()) / create_image_for_tether_offer()
         await client.send_photo(CHANNEL_ID, image_path, caption=FINAL_MESSAGE, reply_markup=FINAL_KEYBOARD)
     except Exception as e:
-        print(f"[tether_final_confirm_handler] Error sending photo to channel: {e}")
+        logging.error(f"[tether_final_confirm_handler] Error sending photo to channel: {e}")
         error_text = f"⛔️ خطا در ارسال به کانال: {str(e)}"
         await message_manager.send_clean_message(
             client, chat_id, error_text, None, user_id
         )
         return
     
-    # ارسال پیام موفقیت و بازگشت به پنل ادمین
-    success_message = "✅ نهایی‌سازی با موفقیت انجام شد و قیمت‌ها به کانال ارسال گردید!"
+    # آماده کردن پیام نتیجه
+    if failed_updates:
+        success_message = (
+            "✅ نهایی‌سازی با موفقیت انجام شد و قیمت‌ها به کانال ارسال گردید!\n\n"
+            f"⚠️ برخی قیمت‌ها در وب‌سایت به‌روزرسانی نشدند:\n"
+            f"{chr(10).join(failed_updates)}"
+        )
+    else:
+        success_message = (
+            "✅ نهایی‌سازی با موفقیت انجام شد!\n\n"
+            "• قیمت‌ها به کانال ارسال گردید\n"
+            "• همه قیمت‌ها در وب‌سایت به‌روزرسانی شدند"
+        )
     
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 بازگشت به پنل ادمین", callback_data="back_to_admin")]
@@ -314,6 +412,5 @@ async def tether_final_decline_handler(client, callback_query):
         from .admin_panel import admin_panel
         await admin_panel(client, callback_query.message, user_id, chat_id)
     except Exception as e:
-        print(f"[tether_final_decline_handler] Error returning to admin panel: {e}")
+        logging.error(f"[tether_final_decline_handler] Error returning to admin panel: {e}")
         await client.send_message(chat_id, text=f"⛔️ خطا در بازگشت به پنل ادمین: {str(e)}")
-

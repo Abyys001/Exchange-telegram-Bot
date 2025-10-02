@@ -62,4 +62,6 @@ async def contact_us(client, message):
             kwargs["reply_markup"] = CONTACT_KEYBOARD
         await message.reply_photo(**kwargs)
     except Exception as e:
-        await message.reply(f"[contact_us] Error: {e}")
+        import logging
+        logging.error(f"[contact_us] Error: {e}")
+        await message.reply("⛔️ خطا در تولید تصویر قیمت‌ها. لطفاً دوباره تلاش کنید.")

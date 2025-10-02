@@ -179,7 +179,7 @@ def offer_draw(state):
     if state is None or state < 1 or state > 6:
         # فقط در حالت تست پرینت کن
         if __name__ == "__main__":
-            print("هیچ آفر فعالی موجود نیست یا وضعیت نامعتبر است.")
+            pass
         return
 
     img_path = f"./assets/offer/offer{state}.png"
@@ -232,7 +232,7 @@ def offer_draw(state):
     else:
         # فقط در حالت تست پرینت کن
         if __name__ == "__main__":
-            print("هیچ آفر فعالی موجود نیست.")
+            pass
 
 def create_image_for_tether_offer():
     now, _ = get_current_times()

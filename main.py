@@ -1,5 +1,6 @@
 from pyromod import Client
-from plugins.secret_keys import PARDIS_SECRET_KEY
+# from plugins.secret_keys import PARDIS_SECRET_KEY
+VR_BOT_FORTEST = "6861700509:AAGy1_eRKAPCVH6NKK-TgodM_6b13KNQFBY"
 
 # BOT_TOKEN = PARDIS_SECRET_KEY
 API_ID = 25659111

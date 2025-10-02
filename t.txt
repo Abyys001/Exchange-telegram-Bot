@@ -1,0 +1,61 @@
+url: https://pardis.zoxagadget.com/wp-json/pardis/v1/rates
+Method: POST
+Content-Type: application/json
+-----------------------------------------------------------
+*Pound currency update*
+{
+  "currency": "GBP",
+  "rate": 67000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
+
+-----------------------------------------------------------
+*Tether currency update*
+{
+  "currency": "USDT",
+  "rate": 43000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
+-----------------------------------------------------------
+*Python code example*
+import requests
+
+def update_price(currency, rate):
+    url = "https://pardis.zoxagadget.com/wp-json/pardis/v1/rates"
+    data = {
+        "currency": currency,
+        "rate": rate,
+        "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+    }
+    response = requests.post(url, json=data)
+    return response.json()
+
+update_price("GBP", 67000)  # Pound
+update_price("USDT", 43000) # Tether
+
+
+
+# after update 
+{
+  "currency": "GBP_BUY",
+  "rate": 65000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
+--------------------------------------------------------------------------------
+{
+  "currency": "GBP_SELL", 
+  "rate": 67000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
+--------------------------------------------------------------------------------
+{
+  "currency": "USDT_BUY",
+  "rate": 42000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
+--------------------------------------------------------------------------------
+{
+  "currency": "USDT_SELL",
+  "rate": 43000,
+  "api_key": "PX9k7mN2qR8vL4jH6wE3tY1uI5oP0aS9dF7gK2mN8xZ4cV6bQ1wE3rT5yU8iO0pL"
+}
