@@ -12,7 +12,7 @@ A professional **Telegram bot for cryptocurrency and fiat exchange management** 
 ✅ **Multi-language support** (English/Persian)  
 ✅ **Secure authentication** (2FA for admins)  
 
----
+---123
 
 ## 🛠 **Tech Stack**  
 | Component | Technology |  
